@@ -147,6 +147,14 @@ details summary { font-size:11px !important; color:var(--text-3) !important; cur
 .arc-note { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:9px 13px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-3); margin-bottom:16px; }
 
 #MainMenu, footer, header { visibility:hidden; }
+
+/* hide sidebar collapse button icon text */
+button[data-testid="collapsedControl"],
+[data-testid="stSidebarCollapseButton"],
+button[kind="header"] { display:none !important; }
+section[data-testid="stSidebar"] > div:first-child > div:first-child button {
+  display: none !important;
+}
 </style>
 """, unsafe_allow_html=True)
 
