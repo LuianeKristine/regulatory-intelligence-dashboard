@@ -735,7 +735,7 @@ with tab_fav:
                     args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
                     daemon=True
                 ).start()
-                st.rerun()
+                st.rerun()  # session_state["removed_favs"] already hides it instantly
 
 # ARCHIVE
 with tab_arc:
