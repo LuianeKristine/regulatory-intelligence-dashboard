@@ -165,7 +165,7 @@ def card_border(p):
     if p == "low":    return "intel-card intel-card-low"
     return "intel-card intel-card-na"
 
-def render_card(row, show_source=True):
+def render_card(row, show_source=True, idx=None):
     title   = str(row.get("Title",   "")).strip() or "Untitled"
     url     = str(row.get("URL",     "")).strip()
     summary = str(row.get("AI Summary", row.get("Summary", ""))).strip()
@@ -192,13 +192,13 @@ def render_card(row, show_source=True):
     </div>""", unsafe_allow_html=True)
 
     if impl or actions:
-        with st.expander("Analysis details"):
+        with st.expander("Analysis details", key=f"exp_{idx}_{hash(title+pub)}"):
             if impl:    st.markdown(f"**Implications:** {impl}")
             if actions: st.markdown(f"**Action Items:** {actions}")
 
     col1, col2 = st.columns([6,1])
     with col2:
-        if st.button("⭐ Save", key=f"fav_{hash(title+pub)}", help="Save to Favorites"):
+        if st.button("⭐ Save", key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites"):
             if save_favorite(row):
                 st.success("Saved!", icon="⭐")
 
@@ -284,13 +284,13 @@ with tab_home:
     if high_all.empty:
         st.markdown('<div class="intel-card intel-card-na" style="color:#aaa;text-align:center;padding:32px;">No high priority items today.</div>', unsafe_allow_html=True)
     else:
-        for _, row in high_all.iterrows(): render_card(row)
+        for _i, (_idx, row) in enumerate(high_all.iterrows()): render_card(row, idx=f"hall{_i}")
 
     st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest Regulatory Updates</div>', unsafe_allow_html=True)
-    for _, row in df_updates.head(5).iterrows(): render_card(row)
+    for _i, (_idx, row) in enumerate(df_updates.head(5).iterrows()): render_card(row, idx=f"uhome{_i}")
 
     st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest News</div>', unsafe_allow_html=True)
-    for _, row in df_news.head(5).iterrows(): render_card(row)
+    for _i, (_idx, row) in enumerate(df_news.head(5).iterrows()): render_card(row, idx=f"nhome{_i}")
 
 # REGULATORY
 with tab_reg:
@@ -300,7 +300,7 @@ with tab_reg:
     if df_f.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
     else:
-        for _, row in df_f.iterrows(): render_card(row)
+        for _i, (_idx, row) in enumerate(df_f.iterrows()): render_card(row, idx=f"reg{_i}")
 
 # NEWS
 with tab_news_t:
@@ -314,9 +314,9 @@ with tab_news_t:
         for src in df_f["Source"].unique():
             src_df = df_f[df_f["Source"] == src]
             with st.expander(f"{src} — {len(src_df)} items"):
-                for _, row in src_df.iterrows(): render_card(row, show_source=False)
+                for _i, (_idx, row) in enumerate(src_df.iterrows()): render_card(row, show_source=False, idx=f"src{_i}")
     else:
-        for _, row in df_f.iterrows(): render_card(row)
+        for _i, (_idx, row) in enumerate(df_f.iterrows()): render_card(row, idx=f"news{_i}")
 
 # COMPETITORS
 with tab_comp:
@@ -365,13 +365,13 @@ with tab_search:
         st.markdown(f'<div class="item-count">{total} results for <strong style="color:#1a1a1a">{q}</strong></div>', unsafe_allow_html=True)
         if not r_u.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Regulatory ({len(r_u)})</div>', unsafe_allow_html=True)
-            for _, row in r_u.iterrows(): render_card(row)
+            for _i, (_idx, row) in enumerate(r_u.iterrows()): render_card(row, idx=f"ru{_i}")
         if not r_n.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">News ({len(r_n)})</div>', unsafe_allow_html=True)
-            for _, row in r_n.iterrows(): render_card(row)
+            for _i, (_idx, row) in enumerate(r_n.iterrows()): render_card(row, idx=f"rn{_i}")
         if not r_c.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors ({len(r_c)})</div>', unsafe_allow_html=True)
-            for _, row in r_c.head(20).iterrows(): render_card(row)
+            for _i, (_idx, row) in enumerate(r_c.head(20).iterrows()): render_card(row, idx=f"rc{_i}")
         if total == 0:
             st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No results found.</div>', unsafe_allow_html=True)
     else:
@@ -385,8 +385,8 @@ with tab_fav:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ⭐ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
-        for _, row in df_fav.iloc[::-1].iterrows():
-            render_card(row, show_source=True)
+        for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
+            render_card(row, show_source=True, idx=f"fav{_i}")
 
 # ARCHIVE
 with tab_arc:
@@ -399,7 +399,7 @@ with tab_arc:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
         st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
-        for _, row in df_arc_f.head(50).iterrows(): render_card(row)
+        for _i, (_idx, row) in enumerate(df_arc_f.head(50).iterrows()): render_card(row, idx=f"arc{_i}")
         if len(df_arc_f) > 50:
             st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
     arc_count = len(df_archive) if not df_archive.empty else 0
@@ -410,6 +410,6 @@ with tab_arc:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
         st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
-        for _, row in df_arc_f.head(50).iterrows(): render_card(row)
+        for _i, (_idx, row) in enumerate(df_arc_f.head(50).iterrows()): render_card(row, idx=f"arc2{_i}")
         if len(df_arc_f) > 50:
             st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
