@@ -257,6 +257,23 @@ with st.spinner(""):
     df_competitors = load_tab("Competitors")
     df_archive     = load_tab("Archive")
 
+# ── PAGINATION HELPER ─────────────────────────────────────────────────────────
+PAGE_SIZE = 10
+
+def paginated(df, key, prefix):
+    """Render df with Load More button. Returns nothing — renders directly."""
+    if key not in st.session_state:
+        st.session_state[key] = PAGE_SIZE
+    n = st.session_state[key]
+    subset = df.iloc[:n]
+    for _i, (_idx, row) in enumerate(subset.iterrows()):
+        render_card(row, idx=f"{prefix}{_i}")
+    if n < len(df):
+        remaining = len(df) - n
+        if st.button(f"Load more  ({remaining} remaining)", key=f"btn_{key}"):
+            st.session_state[key] += PAGE_SIZE
+            st.rerun()
+
 # ── METRICS ───────────────────────────────────────────────────────────────────
 high_total = high_count(df_updates) + high_count(df_news)
 high_class = "metric-num high" if high_total > 0 else "metric-num"
@@ -300,7 +317,7 @@ with tab_reg:
     if df_f.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
     else:
-        for _i, (_idx, row) in enumerate(df_f.iterrows()): render_card(row, idx=f"reg{_i}")
+        paginated(df_f, "page_reg", "reg")
 
 # NEWS
 with tab_news_t:
@@ -316,7 +333,7 @@ with tab_news_t:
             with st.expander(f"{src} — {len(src_df)} items"):
                 for _i, (_idx, row) in enumerate(src_df.iterrows()): render_card(row, show_source=False, idx=f"src{_i}")
     else:
-        for _i, (_idx, row) in enumerate(df_f.iterrows()): render_card(row, idx=f"news{_i}")
+        paginated(df_f, "page_news", "news")
 
 # COMPETITORS
 with tab_comp:
@@ -329,7 +346,9 @@ with tab_comp:
     if df_f.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No competitor intelligence available.</div>', unsafe_allow_html=True)
     else:
-        for _, row in df_f.iterrows():
+        if "page_comp" not in st.session_state: st.session_state["page_comp"] = PAGE_SIZE
+        n = st.session_state["page_comp"]
+        for _ci, (_, row) in enumerate(df_f.iloc[:n].iterrows()):
             title   = str(row.get("Title",   "")).strip() or "Untitled"
             url     = str(row.get("URL",     "")).strip()
             summary = str(row.get("Summary", "")).strip()
@@ -351,7 +370,12 @@ with tab_comp:
               <div class="card-tags">{tags}</div>
             </div>""", unsafe_allow_html=True)
             if notes:
-                with st.expander("Details"): st.markdown(notes)
+                with st.expander("Details", key=f"comp_exp_{_ci}"): st.markdown(notes)
+        if n < len(df_f):
+            remaining = len(df_f) - n
+            if st.button(f"Load more  ({remaining} remaining)", key="btn_page_comp"):
+                st.session_state["page_comp"] += PAGE_SIZE
+                st.rerun()
 
 # SEARCH
 with tab_search:
@@ -365,13 +389,13 @@ with tab_search:
         st.markdown(f'<div class="item-count">{total} results for <strong style="color:#1a1a1a">{q}</strong></div>', unsafe_allow_html=True)
         if not r_u.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Regulatory ({len(r_u)})</div>', unsafe_allow_html=True)
-            for _i, (_idx, row) in enumerate(r_u.iterrows()): render_card(row, idx=f"ru{_i}")
+            paginated(r_u, "page_sreg", "ru")
         if not r_n.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">News ({len(r_n)})</div>', unsafe_allow_html=True)
-            for _i, (_idx, row) in enumerate(r_n.iterrows()): render_card(row, idx=f"rn{_i}")
+            paginated(r_n, "page_snews", "rn")
         if not r_c.empty:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors ({len(r_c)})</div>', unsafe_allow_html=True)
-            for _i, (_idx, row) in enumerate(r_c.head(20).iterrows()): render_card(row, idx=f"rc{_i}")
+            paginated(r_c, "page_scomp", "rc")
         if total == 0:
             st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No results found.</div>', unsafe_allow_html=True)
     else:
@@ -433,6 +457,4 @@ with tab_arc:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search_input", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
         st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
-        for _i, (_idx, row) in enumerate(df_arc_f.head(50).iterrows()): render_card(row, idx=f"arc{_i}")
-        if len(df_arc_f) > 50:
-            st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
+        paginated(df_arc_f, "page_arc", "arc")
