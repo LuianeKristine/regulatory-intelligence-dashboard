@@ -239,7 +239,6 @@ def render_card(row, show_source=True, idx=None):
                                datetime.now().strftime("%Y-%m-%d %H:%M"), ""])
             except Exception:
                 pass
-            st.rerun()
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
@@ -454,15 +453,22 @@ with tab_fav:
     # Load from Sheets
     df_fav = load_tab("Favorites")
 
-    # Merge pending (saved this session, not yet in cache)
+    # Merge pending (saved this session, not yet in Sheets cache)
     if st.session_state["pending_favs"]:
         df_pending = pd.DataFrame(st.session_state["pending_favs"])
-        df_fav = pd.concat([df_fav, df_pending], ignore_index=True)
+        if df_fav.empty:
+            df_fav = df_pending
+        else:
+            # Align columns before concat
+            for col in df_pending.columns:
+                if col not in df_fav.columns:
+                    df_fav[col] = ""
+            df_fav = pd.concat([df_fav, df_pending], ignore_index=True)
 
-    # Filter removed
+    # Filter removed and duplicates
     if not df_fav.empty and "Title" in df_fav.columns:
         df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
-        df_fav = df_fav.drop_duplicates(subset=["Title"])
+        df_fav = df_fav.drop_duplicates(subset=["Title"], keep="last")
 
     if df_fav.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
