@@ -231,7 +231,7 @@ def render_card(row, show_source=True, idx=None):
                 "Saved At": datetime.now().strftime("%Y-%m-%d %H:%M"),
                 "Deleted": "",
             })
-            # 2. Write to Sheets in background
+            # Write to Sheets in background (don't wait)
             try:
                 gc = get_client()
                 ws = gc.open(SHEET_NAME).worksheet("Favorites")
@@ -239,6 +239,7 @@ def render_card(row, show_source=True, idx=None):
                                datetime.now().strftime("%Y-%m-%d %H:%M"), ""])
             except Exception:
                 pass
+            st.rerun()
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
@@ -449,8 +450,6 @@ with tab_fav:
         st.session_state["saved_favs"] = set()
     if "pending_favs" not in st.session_state:
         st.session_state["pending_favs"] = []
-
-    st.caption(f"🔍 pending_favs: {len(st.session_state['pending_favs'])} | saved_favs: {st.session_state['saved_favs']}")
 
     # Load from Sheets
     df_fav = load_tab("Favorites")
