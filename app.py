@@ -117,7 +117,11 @@ def load_tab(tab_name):
         gc = get_client()
         ws = gc.open(SHEET_NAME).worksheet(tab_name)
         data = ws.get_all_records()
-        return pd.DataFrame(data) if data else pd.DataFrame()
+        df = pd.DataFrame(data) if data else pd.DataFrame()
+        # Filter soft-deleted favorites
+        if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
+            df = df[df["Deleted"].fillna("") != "deleted"]
+        return df
     except Exception as e:
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
@@ -130,7 +134,7 @@ def save_favorite(row):
             ws = ss.worksheet("Favorites")
         except:
             ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
-            ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At"])
+            ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At","Deleted"])
         ws.append_row([
             str(row.get("Title","")),
             str(row.get("URL","")),
@@ -140,6 +144,7 @@ def save_favorite(row):
             str(row.get("Therapeutic Area","")),
             str(row.get("AI Summary", row.get("Summary",""))),
             datetime.now().strftime("%Y-%m-%d %H:%M"),
+            "",
         ])
         return True
     except Exception as e:
@@ -436,10 +441,9 @@ with tab_fav:
                     gc = get_client()
                     ws = gc.open("Raw Intelligence").worksheet("Favorites")
                     all_rows = ws.get_all_values()
-                    # Find and delete the row matching this title
                     for row_num, r in enumerate(all_rows[1:], start=2):
                         if r and r[0] == title:
-                            ws.delete_rows(row_num)
+                            ws.update_cell(row_num, 9, "deleted")  # mark col I as deleted
                             break
                     st.cache_data.clear()
                     st.rerun()
