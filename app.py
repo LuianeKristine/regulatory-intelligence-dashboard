@@ -245,6 +245,31 @@ def filter_df(df, search="", ha_f=None, ta_f=None, pri_f=None):
         df = df[df["Priority"].fillna("").str.lower().isin([p.lower() for p in pri_f])]
     return df
 
+def sort_df(df):
+    """Sort: HIGH first, then by date descending."""
+    if df.empty: return df
+    # Priority order
+    pri_order = {"high": 0, "medium": 1, "low": 2, "": 3}
+    if "Priority" in df.columns:
+        df = df.copy()
+        df["_pri_sort"] = df["Priority"].fillna("").str.strip().str.lower().map(
+            lambda p: pri_order.get(p, 3)
+        )
+    else:
+        df = df.copy()
+        df["_pri_sort"] = 3
+
+    # Date sort — try Published Date, fallback to Date
+    date_col = "Published Date" if "Published Date" in df.columns else ("Date" if "Date" in df.columns else None)
+    if date_col:
+        df["_date_sort"] = pd.to_datetime(df[date_col].fillna(""), errors="coerce")
+        df = df.sort_values(["_pri_sort", "_date_sort"], ascending=[True, False])
+        df = df.drop(columns=["_pri_sort", "_date_sort"])
+    else:
+        df = df.sort_values("_pri_sort", ascending=True)
+        df = df.drop(columns=["_pri_sort"])
+    return df
+
 def render_card(row, key, show_save=True):
     title   = clean(row.get("Title",   ""), 200) or "Untitled"
     url     = str(row.get("URL", "")).strip()
@@ -358,7 +383,7 @@ with tab_home:
     def col_html(df_):
         if df_ is None or df_.empty:
             return '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
-        return "".join(hcard(r) for _, r in df_.iterrows())
+        return "".join(hcard(r) for _, r in sort_df(df_).iterrows())
 
     high_parts = []
     for df_ in [df_upd, df_news]:
@@ -386,7 +411,7 @@ with tab_home:
 # ══════════════════════════════════════════════════════════════
 with tab_reg:
     st.markdown('<div class="sec-hdr">Regulatory Updates</div>', unsafe_allow_html=True)
-    df_f = filter_df(df_upd, search_q, sel_ha, sel_ta, sel_pri)
+    df_f = sort_df(filter_df(df_upd, search_q, sel_ha, sel_ta, sel_pri))
     st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
         st.markdown('<div class="empty">No items match your filters.</div>', unsafe_allow_html=True)
@@ -399,7 +424,7 @@ with tab_reg:
 # ══════════════════════════════════════════════════════════════
 with tab_nws:
     st.markdown('<div class="sec-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
-    df_f = filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri)
+    df_f = sort_df(filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri))
     st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     group = st.toggle("Group by source", value=False)
     if df_f.empty:
