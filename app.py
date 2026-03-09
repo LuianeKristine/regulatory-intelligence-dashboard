@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime, date
 import gspread
 from google.oauth2.service_account import Credentials
+import threading
 
 st.set_page_config(
     page_title="Regulatory Intelligence Platform",
@@ -219,6 +220,9 @@ def render_card(row, show_source=True, idx=None):
                 st.session_state["saved_favs"] = set()
             if "pending_favs" not in st.session_state:
                 st.session_state["pending_favs"] = []
+            from datetime import timezone, timedelta
+            BR_TZ = timezone(timedelta(hours=-3))
+            saved_at = datetime.now(BR_TZ).strftime("%Y-%m-%d %H:%M")
             st.session_state["saved_favs"].add(title)
             st.session_state["pending_favs"].append({
                 "Title": title,
@@ -228,17 +232,28 @@ def render_card(row, show_source=True, idx=None):
                 "Priority": pri,
                 "Therapeutic Area": ta,
                 "AI Summary": summary,
-                "Saved At": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Saved At": saved_at,
                 "Deleted": "",
             })
-            # Write to Sheets in background (don't wait)
-            try:
-                gc = get_client()
-                ws = gc.open(SHEET_NAME).worksheet("Favorites")
-                ws.append_row([title, url, source, pub, pri, ta, summary,
-                               datetime.now().strftime("%Y-%m-%d %H:%M"), ""])
-            except Exception:
-                pass
+            # Write to Sheets in background thread — never blocks rerun
+            def _write(t, u, s, p, pr, ta_, sm, dt, sheet_name, secrets):
+                try:
+                    creds = Credentials.from_service_account_info(secrets, scopes=[
+                        "https://spreadsheets.google.com/feeds",
+                        "https://www.googleapis.com/auth/drive",
+                    ])
+                    gc2 = gspread.authorize(creds)
+                    ws2 = gc2.open(sheet_name).worksheet("Favorites")
+                    ws2.append_row([t, u, s, p, pr, ta_, sm, dt, ""])
+                except Exception:
+                    pass
+            threading.Thread(
+                target=_write,
+                args=(title, url, source, pub, pri, ta, summary,
+                      saved_at,
+                      SHEET_NAME, dict(st.secrets["gcp_service_account"])),
+                daemon=True
+            ).start()
             st.rerun()
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
@@ -460,16 +475,16 @@ with tab_fav:
         if df_fav.empty:
             df_fav = df_pending
         else:
-            # Align columns before concat
             for col in df_pending.columns:
                 if col not in df_fav.columns:
                     df_fav[col] = ""
-            df_fav = pd.concat([df_fav, df_pending], ignore_index=True)
+            # Concat: pending at top so keep="first" keeps pending over old cache
+            df_fav = pd.concat([df_pending, df_fav], ignore_index=True)
 
-    # Filter removed and duplicates
+    # Filter removed and duplicates — keep first (pending takes priority)
     if not df_fav.empty and "Title" in df_fav.columns:
         df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
-        df_fav = df_fav.drop_duplicates(subset=["Title"], keep="last")
+        df_fav = df_fav.drop_duplicates(subset=["Title"], keep="first")
 
     if df_fav.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
@@ -499,21 +514,30 @@ with tab_fav:
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
                 st.session_state["removed_favs"].add(title)
-                # Remove from pending too
                 st.session_state["pending_favs"] = [
                     p for p in st.session_state["pending_favs"] if p.get("Title") != title
                 ]
                 st.session_state["saved_favs"].discard(title)
-                try:
-                    gc = get_client()
-                    ws = gc.open("Raw Intelligence").worksheet("Favorites")
-                    all_rows = ws.get_all_values()
-                    for row_num, r in enumerate(all_rows[1:], start=2):
-                        if r and r[0] == title:
-                            ws.update_cell(row_num, 9, "deleted")
-                            break
-                except Exception:
-                    pass
+                def _remove(t, sheet_name, secrets):
+                    try:
+                        creds = Credentials.from_service_account_info(secrets, scopes=[
+                            "https://spreadsheets.google.com/feeds",
+                            "https://www.googleapis.com/auth/drive",
+                        ])
+                        gc2 = gspread.authorize(creds)
+                        ws2 = gc2.open(sheet_name).worksheet("Favorites")
+                        all_rows = ws2.get_all_values()
+                        for row_num, r in enumerate(all_rows[1:], start=2):
+                            if r and r[0] == t:
+                                ws2.update_cell(row_num, 9, "deleted")
+                                break
+                    except Exception:
+                        pass
+                threading.Thread(
+                    target=_remove,
+                    args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
+                    daemon=True
+                ).start()
                 st.rerun()
 
 # ARCHIVE
