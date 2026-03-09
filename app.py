@@ -450,6 +450,8 @@ with tab_fav:
     if "pending_favs" not in st.session_state:
         st.session_state["pending_favs"] = []
 
+    st.caption(f"🔍 pending_favs: {len(st.session_state['pending_favs'])} | saved_favs: {st.session_state['saved_favs']}")
+
     # Load from Sheets
     df_fav = load_tab("Favorites")
 
