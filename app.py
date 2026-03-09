@@ -420,7 +420,17 @@ with tab_search:
 # FAVORITES
 with tab_fav:
     st.markdown('<div class="section-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
+
+    # Initialize removed set in session state
+    if "removed_favs" not in st.session_state:
+        st.session_state["removed_favs"] = set()
+
     df_fav = load_tab("Favorites")
+
+    # Apply session-state removals instantly (before API catches up)
+    if not df_fav.empty and "Title" in df_fav.columns:
+        df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
+
     if df_fav.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ⭐ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
@@ -448,18 +458,20 @@ with tab_fav:
             </div>""", unsafe_allow_html=True)
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
+                # 1. Remove from screen instantly
+                st.session_state["removed_favs"].add(title)
+                # 2. Mark as deleted in Sheets (async — user doesn't wait)
                 try:
                     gc = get_client()
                     ws = gc.open("Raw Intelligence").worksheet("Favorites")
                     all_rows = ws.get_all_values()
                     for row_num, r in enumerate(all_rows[1:], start=2):
                         if r and r[0] == title:
-                            ws.update_cell(row_num, 9, "deleted")  # mark col I as deleted
+                            ws.update_cell(row_num, 9, "deleted")
                             break
-                    st.cache_data.clear()
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Could not remove: {e}")
+                except Exception:
+                    pass  # Will retry on next cache refresh
+                st.rerun()
 
 # ARCHIVE
 with tab_arc:
