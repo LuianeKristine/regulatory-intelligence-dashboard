@@ -661,35 +661,28 @@ with tab_search:
 with tab_fav:
     st.markdown('<div class="section-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
 
-    if "removed_favs" not in st.session_state:
-        st.session_state["removed_favs"] = set()
-    if "saved_favs" not in st.session_state:
-        st.session_state["saved_favs"] = set()
-    if "pending_favs" not in st.session_state:
-        st.session_state["pending_favs"] = []
+    # Init session state
+    if "removed_favs"  not in st.session_state: st.session_state["removed_favs"]  = set()
+    if "saved_favs"    not in st.session_state: st.session_state["saved_favs"]    = set()
+    if "pending_favs"  not in st.session_state: st.session_state["pending_favs"]  = []
 
-    # Load from Sheets
+    # Load from Sheets (cached)
     df_fav = load_tab("Favorites")
 
-    # Merge pending (saved this session, not yet in Sheets cache)
-    if st.session_state["pending_favs"]:
-        df_pending = pd.DataFrame(st.session_state["pending_favs"])
-        if df_fav.empty:
-            df_fav = df_pending
-        else:
-            for col in df_pending.columns:
-                if col not in df_fav.columns:
-                    df_fav[col] = ""
-            # Concat: pending at top so keep="first" keeps pending over old cache
-            df_fav = pd.concat([df_pending, df_fav], ignore_index=True)
-
-    # Filter removed and duplicates — keep first (pending takes priority)
+    # Remove deleted items (sheet may lag behind)
     if not df_fav.empty and "Title" in df_fav.columns:
         df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
-        df_fav = df_fav.drop_duplicates(subset=["Title"], keep="first")
+
+    # Add newly saved items that aren't in cache yet
+    if st.session_state["pending_favs"]:
+        existing_titles = set(df_fav["Title"].tolist()) if not df_fav.empty else set()
+        new_rows = [p for p in st.session_state["pending_favs"] if p["Title"] not in existing_titles]
+        if new_rows:
+            df_new = pd.DataFrame(new_rows)
+            df_fav = pd.concat([df_fav, df_new], ignore_index=True) if not df_fav.empty else df_new
 
     if df_fav.empty:
-        st.markdown('<div class="intel-card" class="empty-state">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
@@ -708,19 +701,21 @@ with tab_fav:
 
             st.markdown(f"""
             <div class="{card_border(pri)}">
-              <div class="card-title">{title_html}</div>
-              <div class="card-date">{pub or "—"}</div>
+              <div class="card-header">
+                <div class="card-title">{title_html}</div>
+                <span class="card-date">{pub or "—"}</span>
+              </div>
               <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
               <div class="card-tags">{priority_badge(pri)}{tags}</div>
             </div>""", unsafe_allow_html=True)
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
+                # Remove from screen instantly
                 st.session_state["removed_favs"].add(title)
-                st.session_state["pending_favs"] = [
-                    p for p in st.session_state["pending_favs"] if p.get("Title") != title
-                ]
                 st.session_state["saved_favs"].discard(title)
-                def _remove(t, sheet_name, secrets):
+                st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
+                # Delete row from Sheets in background (real delete)
+                def _delete(t, sheet_name, secrets):
                     try:
                         creds = Credentials.from_service_account_info(secrets, scopes=[
                             "https://spreadsheets.google.com/feeds",
@@ -731,12 +726,12 @@ with tab_fav:
                         all_rows = ws2.get_all_values()
                         for row_num, r in enumerate(all_rows[1:], start=2):
                             if r and r[0] == t:
-                                ws2.update_cell(row_num, 9, "deleted")
+                                ws2.delete_rows(row_num)
                                 break
                     except Exception:
                         pass
                 threading.Thread(
-                    target=_remove,
+                    target=_delete,
                     args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
                     daemon=True
                 ).start()
