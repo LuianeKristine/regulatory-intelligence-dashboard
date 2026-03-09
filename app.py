@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, date
-import requests
-import io
+import gspread
+from google.oauth2.service_account import Credentials
 
 st.set_page_config(
     page_title="Regulatory Intelligence Platform",
@@ -98,24 +98,53 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── DATA ──────────────────────────────────────────────────────────────────────
-SHEET_ID = "1VIkRptXrV0HPjTxuzq96wVx67rBtbk8tW-acGop5DME"
-TAB_IDS  = {
-    "Updates":     "1528624300",
-    "News":        "685156462",
-    "Competitors": "1451797372",
-    "Archive":     "859959561",
-}
+SHEET_NAME = "Raw Intelligence"
+SCOPES = [
+    "https://spreadsheets.google.com/feeds",
+    "https://www.googleapis.com/auth/drive",
+]
+
+@st.cache_resource(ttl=300)
+def get_client():
+    creds = Credentials.from_service_account_info(
+        st.secrets["gcp_service_account"], scopes=SCOPES
+    )
+    return gspread.authorize(creds)
 
 @st.cache_data(ttl=300)
 def load_tab(tab_name):
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={TAB_IDS[tab_name]}"
-        r   = requests.get(url, timeout=15)
-        r.raise_for_status()
-        return pd.read_csv(io.StringIO(r.text))
+        gc = get_client()
+        ws = gc.open(SHEET_NAME).worksheet(tab_name)
+        data = ws.get_all_records()
+        return pd.DataFrame(data) if data else pd.DataFrame()
     except Exception as e:
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
+
+def save_favorite(row):
+    try:
+        gc = get_client()
+        ss = gc.open(SHEET_NAME)
+        try:
+            ws = ss.worksheet("Favorites")
+        except:
+            ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
+            ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At"])
+        ws.append_row([
+            str(row.get("Title","")),
+            str(row.get("URL","")),
+            str(row.get("Source","")),
+            str(row.get("Published Date", row.get("Date",""))),
+            str(row.get("Priority","")),
+            str(row.get("Therapeutic Area","")),
+            str(row.get("AI Summary", row.get("Summary",""))),
+            datetime.now().strftime("%Y-%m-%d %H:%M"),
+        ])
+        return True
+    except Exception as e:
+        st.error(f"Could not save favorite: {e}")
+        return False
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
 def high_count(df):
@@ -166,6 +195,12 @@ def render_card(row, show_source=True):
         with st.expander("Analysis details"):
             if impl:    st.markdown(f"**Implications:** {impl}")
             if actions: st.markdown(f"**Action Items:** {actions}")
+
+    col1, col2 = st.columns([6,1])
+    with col2:
+        if st.button("⭐ Save", key=f"fav_{hash(title+pub)}", help="Save to Favorites"):
+            if save_favorite(row):
+                st.success("Saved!", icon="⭐")
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
@@ -236,8 +271,8 @@ st.markdown(f"""
 """, unsafe_allow_html=True)
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc = st.tabs([
-    "Home", "Regulatory", "News", "Competitors", "Search", "Archive"
+tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs([
+    "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
 ])
 
 # HOME
@@ -342,9 +377,31 @@ with tab_search:
     else:
         st.markdown('<div style="color:#bbb;text-align:center;padding:48px;font-size:0.85rem;">Type above to search across all intelligence.</div>', unsafe_allow_html=True)
 
+# FAVORITES
+with tab_fav:
+    st.markdown('<div class="section-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
+    df_fav = load_tab("Favorites")
+    if df_fav.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ⭐ Save on any item to save it here.</div>', unsafe_allow_html=True)
+    else:
+        st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
+        for _, row in df_fav.iloc[::-1].iterrows():
+            render_card(row, show_source=True)
+
 # ARCHIVE
 with tab_arc:
     st.markdown('<div class="section-hdr">Archive</div>', unsafe_allow_html=True)
+    arc_count = len(df_archive) if not df_archive.empty else 0
+    st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
+    if df_archive.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">Archive is empty.</div>', unsafe_allow_html=True)
+    else:
+        arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
+        df_arc_f = filter_df(df_archive, arc_q)
+        st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
+        for _, row in df_arc_f.head(50).iterrows(): render_card(row)
+        if len(df_arc_f) > 50:
+            st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
     arc_count = len(df_archive) if not df_archive.empty else 0
     st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
     if df_archive.empty:
