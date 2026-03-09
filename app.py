@@ -572,30 +572,27 @@ with tab_home:
     high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
     high_all = pd.concat([high_u, high_n]).head(5)
 
-    def home_card(row, idx):
+    def home_card_html(row):
         title   = str(row.get("Title","")).strip() or "Untitled"
         url     = str(row.get("URL","")).strip()
         summary = str(row.get("AI Summary", row.get("Summary",""))).strip()
         pri     = str(row.get("Priority","")).strip()
         pub     = str(row.get("Published Date", row.get("Date",""))).strip()[:16]
         ta      = str(row.get("Therapeutic Area","")).strip()
-        title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
+        title_html = f'<a href="{url}" target="_blank" style="color:var(--text-primary);text-decoration:none;font-weight:500;">{title}</a>' if url else f'<span style="font-weight:500;">{title}</span>'
         tags = priority_badge(pri)
         if ta and ta not in ("-",""): tags += f' <span class="tag tag-gold">{ta}</span>'
-        return f"""
-        <div class="{card_border(pri)}" style="margin-bottom:6px;">
-          <div class="card-header">
-            <div class="card-title">{title_html}</div>
-            <span class="card-date">{pub or "—"}</span>
-          </div>
+        return f"""<div class="{card_border(pri)}" style="margin-bottom:6px;">
+          <div class="card-header"><div class="card-title">{title_html}</div><span class="card-date">{pub or "—"}</span></div>
           <div class="card-summary" style="font-size:12px;">{summary[:200] if summary else "No summary."}</div>
           <div class="card-tags">{tags}</div>
         </div>"""
 
-    # Build columns HTML
-    col_high = "".join(home_card(r, f"hh{i}") for i, (_, r) in enumerate(high_all.iterrows())) if not high_all.empty else '<div class="empty-state" style="padding:24px;">No high priority items.</div>'
-    col_reg  = "".join(home_card(r, f"hr{i}") for i, (_, r) in enumerate(df_updates.head(5).iterrows())) if not df_updates.empty else '<div class="empty-state" style="padding:24px;">No items.</div>'
-    col_news = "".join(home_card(r, f"hn{i}") for i, (_, r) in enumerate(df_news.head(5).iterrows())) if not df_news.empty else '<div class="empty-state" style="padding:24px;">No items.</div>'
+    empty_col = '<div class="empty-state" style="padding:24px;font-size:12px;">No items.</div>'
+
+    col_high = "".join(home_card_html(r) for _, r in high_all.iterrows()) if not high_all.empty else '<div class="empty-state" style="padding:24px;font-size:12px;">No high priority items.</div>'
+    col_reg  = "".join(home_card_html(r) for _, r in df_updates.head(5).iterrows()) if not df_updates.empty else empty_col
+    col_news = "".join(home_card_html(r) for _, r in df_news.head(5).iterrows()) if not df_news.empty else empty_col
 
     st.markdown(f"""
     <div class="home-grid">
