@@ -1,0 +1,1016 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RIP · Regulatory Intelligence</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-2: #f5f5f4;
+    --border: #e7e5e4;
+    --border-light: #f0efee;
+    --text-primary: #1c1917;
+    --text-secondary: #78716c;
+    --text-muted: #a8a29e;
+    --accent: #0f172a;
+    --gold: #92400e;
+    --gold-bg: #fef3c7;
+    --gold-border: #fde68a;
+    --high: #991b1b;
+    --high-bg: #fef2f2;
+    --high-border: #fecaca;
+    --med: #92400e;
+    --med-bg: #fffbeb;
+    --med-border: #fde68a;
+    --low: #166534;
+    --low-bg: #f0fdf4;
+    --low-border: #bbf7d0;
+    --radius: 8px;
+    --sidebar-w: 220px;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: 'Geist', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    display: flex;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    width: var(--sidebar-w);
+    min-height: 100vh;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 20px 0;
+    position: fixed;
+    top: 0; left: 0;
+    z-index: 100;
+    gap: 0;
+  }
+
+  .sidebar-logo {
+    padding: 0 16px 20px 16px;
+    border-bottom: 1px solid var(--border-light);
+    margin-bottom: 8px;
+  }
+  .sidebar-logo-mark {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.1rem;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+  .sidebar-logo-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  .sidebar-section {
+    padding: 4px 8px;
+    margin-bottom: 4px;
+  }
+  .sidebar-section-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0 8px;
+    margin-bottom: 2px;
+  }
+
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.1s;
+    user-select: none;
+    position: relative;
+  }
+  .nav-item:hover { background: var(--surface-2); color: var(--text-primary); }
+  .nav-item.active { background: var(--surface-2); color: var(--text-primary); font-weight: 500; }
+  .nav-item .icon { font-size: 13px; width: 16px; text-align: center; opacity: 0.7; }
+  .nav-badge {
+    margin-left: auto;
+    background: var(--high-bg);
+    color: var(--high);
+    font-size: 10px;
+    font-weight: 600;
+    font-family: 'Geist Mono', monospace;
+    padding: 1px 6px;
+    border-radius: 10px;
+    border: 1px solid var(--high-border);
+  }
+  .nav-badge.neutral {
+    background: var(--surface-2);
+    color: var(--text-muted);
+    border-color: var(--border);
+  }
+
+  .sidebar-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 8px 16px;
+  }
+
+  .sidebar-search {
+    padding: 0 12px;
+    margin-bottom: 8px;
+  }
+  .sidebar-search input {
+    width: 100%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+    color: var(--text-primary);
+    font-family: 'Geist', sans-serif;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .sidebar-search input::placeholder { color: var(--text-muted); }
+  .sidebar-search input:focus { border-color: var(--text-muted); }
+
+  .sidebar-filter-group {
+    padding: 0 12px;
+    margin-bottom: 12px;
+  }
+  .sidebar-filter-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    display: block;
+  }
+  .filter-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+  .chip {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-family: 'Geist Mono', monospace;
+    transition: all 0.1s;
+    user-select: none;
+  }
+  .chip:hover { border-color: var(--text-muted); color: var(--text-primary); }
+  .chip.active { background: var(--text-primary); color: #fff; border-color: var(--text-primary); }
+
+  .sidebar-bottom {
+    margin-top: auto;
+    padding: 12px;
+    border-top: 1px solid var(--border-light);
+  }
+  .refresh-btn {
+    width: 100%;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 11px;
+    font-family: 'Geist', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .refresh-btn:hover { background: var(--surface-2); color: var(--text-primary); }
+  .last-updated {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    text-align: center;
+    margin-top: 8px;
+  }
+
+  /* ── MAIN ── */
+  .main {
+    margin-left: var(--sidebar-w);
+    flex: 1;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOPBAR ── */
+  .topbar {
+    position: sticky;
+    top: 0;
+    background: rgba(250, 250, 249, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    z-index: 50;
+  }
+  .topbar-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .live-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+  .topbar-date {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── CONTENT ── */
+  .content {
+    padding: 28px 32px;
+    max-width: 860px;
+  }
+
+  /* ── METRICS ── */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    transition: border-color 0.15s;
+  }
+  .metric:hover { border-color: var(--text-muted); }
+  .metric-num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .metric-num.alert { color: var(--high); }
+  .metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── SECTION HEADER ── */
+  .section-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    margin-top: 32px;
+  }
+  .section-header:first-of-type { margin-top: 0; }
+  .section-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .section-count {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+  }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 6px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+    cursor: default;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .card.high::before { background: var(--high); }
+  .card.medium::before { background: #d97706; }
+  .card.low::before { background: #16a34a; }
+  .card.na::before { background: var(--border); }
+  .card:hover { border-color: #d4d0cc; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .card-title {
+    font-size: 13.5px;
+    font-weight: 500;
+    color: var(--text-primary);
+    line-height: 1.45;
+    text-decoration: none;
+  }
+  a.card-title:hover { color: #2563eb; }
+  .card-date {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+  .card-summary {
+    font-size: 12.5px;
+    color: var(--text-secondary);
+    line-height: 1.65;
+    margin-bottom: 12px;
+  }
+  .card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .card-tags { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+
+  .tag {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .tag.priority-high   { background: var(--high-bg);  color: var(--high);  border-color: var(--high-border); }
+  .tag.priority-medium { background: var(--med-bg);   color: var(--med);   border-color: var(--med-border); }
+  .tag.priority-low    { background: var(--low-bg);   color: var(--low);   border-color: var(--low-border); }
+  .tag.gold            { background: var(--gold-bg);  color: var(--gold);  border-color: var(--gold-border); }
+
+  .save-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 8px;
+    font-size: 11px;
+    font-family: 'Geist', sans-serif;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.1s;
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .save-btn:hover { border-color: var(--text-muted); color: var(--text-primary); background: var(--surface-2); }
+  .save-btn.saved { color: #ca8a04; border-color: var(--gold-border); background: var(--gold-bg); }
+
+  /* ── TABS ── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 24px;
+  }
+  .tab {
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.1s;
+    user-select: none;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .tab:hover { color: var(--text-secondary); }
+  .tab.active { color: var(--text-primary); border-bottom-color: var(--text-primary); font-weight: 500; }
+  .tab-count {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    padding: 1px 5px;
+    border-radius: 4px;
+    color: var(--text-muted);
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center;
+    padding: 48px 32px;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    border-style: dashed;
+  }
+
+  /* ── LOAD MORE ── */
+  .load-more {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px;
+    font-size: 12px;
+    font-family: 'Geist', sans-serif;
+    color: var(--text-secondary);
+    cursor: pointer;
+    margin-top: 4px;
+    transition: all 0.1s;
+  }
+  .load-more:hover { background: var(--surface-2); color: var(--text-primary); }
+
+  /* ── TABS CONTENT ── */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ── DETAILS EXPANDER ── */
+  .card-details {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+    font-size: 12px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    display: none;
+  }
+  .card-details.open { display: block; }
+  .card-details strong { color: var(--text-primary); font-weight: 500; }
+  .expand-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 11px;
+    color: var(--text-muted);
+    font-family: 'Geist', sans-serif;
+    padding: 0;
+    transition: color 0.1s;
+  }
+  .expand-btn:hover { color: var(--text-primary); }
+
+  /* ── ARCHIVE NOTE ── */
+  .archive-note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  /* ── SEARCH INPUT (main) ── */
+  .search-main {
+    width: 100%;
+    max-width: 480px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 9px 14px;
+    font-size: 13px;
+    font-family: 'Geist', sans-serif;
+    color: var(--text-primary);
+    outline: none;
+    transition: border-color 0.15s;
+    margin-bottom: 20px;
+  }
+  .search-main::placeholder { color: var(--text-muted); }
+  .search-main:focus { border-color: var(--text-muted); }
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR -->
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-logo-mark">RIP</div>
+    <div class="sidebar-logo-sub">Regulatory Intelligence</div>
+  </div>
+
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Views</div>
+    <div class="nav-item active" onclick="switchTab('home', this)">
+      <span class="icon">⌂</span> Home
+    </div>
+    <div class="nav-item" onclick="switchTab('regulatory', this)">
+      <span class="icon">⚖</span> Regulatory
+      <span class="nav-badge neutral">24</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('news', this)">
+      <span class="icon">◈</span> News
+      <span class="nav-badge neutral">18</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('competitors', this)">
+      <span class="icon">◎</span> Competitors
+      <span class="nav-badge neutral">9</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('search', this)">
+      <span class="icon">⌕</span> Search
+    </div>
+    <div class="nav-item" onclick="switchTab('archive', this)">
+      <span class="icon">⊡</span> Archive
+      <span class="nav-badge neutral">41</span>
+    </div>
+    <div class="nav-item" onclick="switchTab('favorites', this)">
+      <span class="icon">◇</span> Favorites
+      <span class="nav-badge" id="fav-badge" style="display:none">0</span>
+    </div>
+  </div>
+
+  <div class="sidebar-divider"></div>
+
+  <div class="sidebar-search">
+    <input type="text" id="sidebar-search" placeholder="Filter…" oninput="filterCards(this.value)" />
+  </div>
+
+  <div class="sidebar-filter-group">
+    <span class="sidebar-filter-label">Priority</span>
+    <div class="filter-chips">
+      <div class="chip" onclick="toggleChip(this, 'priority', 'high')">High</div>
+      <div class="chip" onclick="toggleChip(this, 'priority', 'medium')">Med</div>
+      <div class="chip" onclick="toggleChip(this, 'priority', 'low')">Low</div>
+    </div>
+  </div>
+
+  <div class="sidebar-filter-group">
+    <span class="sidebar-filter-label">Authority</span>
+    <div class="filter-chips">
+      <div class="chip" onclick="toggleChip(this, 'ha', 'fda')">FDA</div>
+      <div class="chip" onclick="toggleChip(this, 'ha', 'ema')">EMA</div>
+      <div class="chip" onclick="toggleChip(this, 'ha', 'ich')">ICH</div>
+    </div>
+  </div>
+
+  <div class="sidebar-filter-group">
+    <span class="sidebar-filter-label">Therapeutic Area</span>
+    <div class="filter-chips">
+      <div class="chip" onclick="toggleChip(this, 'ta', 'oncology')">Oncology</div>
+      <div class="chip" onclick="toggleChip(this, 'ta', 'gene')">Gene Therapy</div>
+      <div class="chip" onclick="toggleChip(this, 'ta', 'rare')">Rare Disease</div>
+    </div>
+  </div>
+
+  <div class="sidebar-bottom">
+    <button class="refresh-btn" onclick="handleRefresh()">
+      <span id="refresh-icon">↺</span> Refresh data
+    </button>
+    <div class="last-updated" id="last-updated">updated just now</div>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title">Regulatory Intelligence Platform</div>
+    <div class="topbar-right">
+      <div class="live-dot"></div>
+      <div class="topbar-date" id="topbar-date"></div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- HOME TAB -->
+    <div class="tab-panel active" id="panel-home">
+      <div class="metrics">
+        <div class="metric">
+          <div class="metric-num alert" id="metric-high">—</div>
+          <div class="metric-label">High Priority</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num" id="metric-reg">—</div>
+          <div class="metric-label">Regulatory</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num" id="metric-news">—</div>
+          <div class="metric-label">News</div>
+        </div>
+        <div class="metric">
+          <div class="metric-num" id="metric-comp">—</div>
+          <div class="metric-label">Competitors</div>
+        </div>
+      </div>
+
+      <div class="section-header">
+        <div class="section-title">High Priority</div>
+      </div>
+      <div id="list-home-high"><div class="empty">Loading…</div></div>
+
+      <div class="section-header">
+        <div class="section-title">Latest Regulatory Updates</div>
+      </div>
+      <div id="list-home-reg"><div class="empty">Loading…</div></div>
+
+      <div class="section-header">
+        <div class="section-title">Latest News</div>
+      </div>
+      <div id="list-home-news"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- REGULATORY TAB -->
+    <div class="tab-panel" id="panel-regulatory">
+      <div class="section-header" style="margin-top:0">
+        <div class="section-title">Regulatory Updates</div>
+        <div class="section-count" id="count-reg"></div>
+      </div>
+      <div id="list-regulatory"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- NEWS TAB -->
+    <div class="tab-panel" id="panel-news">
+      <div class="section-header" style="margin-top:0">
+        <div class="section-title">Industry News</div>
+        <div class="section-count" id="count-news"></div>
+      </div>
+      <div id="list-news"><div class="empty">Loading…</div></div>
+    </div>
+
+    <!-- COMPETITORS TAB -->
+    <div class="tab-panel" id="panel-competitors">
+      <div class="section-header" style="margin-top:0">
+        <div class="section-title">Competitive Intelligence</div>
+        <div class="section-count" id="count-comp"></div>
+      </div>
+      <div id="list-competitors"><div class="empty">Loading…</div></div>
+    </div>
+
+        <!-- SEARCH TAB -->
+    <div class="tab-panel" id="panel-search">
+      <div class="section-header" style="margin-top:0">
+        <div class="section-title">Search All Intelligence</div>
+      </div>
+      <input type="text" class="search-main" placeholder="Search across all data…" oninput="handleSearch(this.value)" id="main-search-input" />
+      <div id="search-results">
+        <div class="empty">Type above to search across all intelligence.</div>
+      </div>
+    </div>
+
+    <!-- ARCHIVE TAB -->
+    <div class="tab-panel" id="panel-archive">
+      <div class="archive-note">⊡ 41 items archived · Items older than 7 days are moved here automatically</div>
+      <input type="text" class="search-main" placeholder="Search archive…" />
+      <div class="empty">Archive items will appear here.</div>
+    </div>
+
+    <!-- FAVORITES TAB -->
+    <div class="tab-panel" id="panel-favorites">
+      <div class="section-header" style="margin-top:0">
+        <div class="section-title">Favorites</div>
+        <div class="section-count" id="fav-count">0 saved</div>
+      </div>
+      <div id="favorites-list">
+        <div class="empty">No favorites yet. Click ☆ Save on any item to save it here.</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+  // ── CONFIG — troque pela URL do seu backend no Railway/Render ──
+  const API_BASE = 'https://your-api.railway.app';
+
+  // ── STATE ─────────────────────────────────────────────────────
+  let allData = { updates: [], news: [], competitors: [], archive: [], favorites: [] };
+  const savedItems = new Set();
+  const activeFilters = { priority: new Set(), ha: new Set(), ta: new Set() };
+  let searchQuery = '';
+
+  // ── DATE ──────────────────────────────────────────────────────
+  const now = new Date();
+  document.getElementById('topbar-date').textContent =
+    now.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+
+  // ── FETCH ─────────────────────────────────────────────────────
+  async function fetchAll() {
+    try {
+      const [updates, news, competitors, archive, favorites] = await Promise.all([
+        fetch(`${API_BASE}/api/updates`).then(r => r.json()),
+        fetch(`${API_BASE}/api/news`).then(r => r.json()),
+        fetch(`${API_BASE}/api/competitors`).then(r => r.json()),
+        fetch(`${API_BASE}/api/archive`).then(r => r.json()),
+        fetch(`${API_BASE}/api/favorites`).then(r => r.json()),
+      ]);
+      allData = { updates, news, competitors, archive, favorites };
+      favorites.forEach(f => savedItems.add(f.Title));
+      renderAll();
+    } catch (e) {
+      console.error('API error:', e);
+      // Mantém dados mockados se API não responder
+    }
+  }
+
+  // ── RENDER HELPERS ────────────────────────────────────────────
+  function priorityClass(p) {
+    const v = (p || '').trim().toLowerCase();
+    if (v === 'high') return 'high';
+    if (v === 'medium') return 'medium';
+    if (v === 'low') return 'low';
+    return 'na';
+  }
+
+  function priorityTag(p) {
+    const v = (p || '').trim().toLowerCase();
+    if (v === 'high')   return '<span class="tag priority-high">HIGH</span>';
+    if (v === 'medium') return '<span class="tag priority-medium">MED</span>';
+    if (v === 'low')    return '<span class="tag priority-low">LOW</span>';
+    return '';
+  }
+
+  function buildCard(row, idx, opts = {}) {
+    const title   = (row.Title || row.title || 'Untitled').trim();
+    const url     = (row.URL || row.url || '').trim();
+    const summary = (row['AI Summary'] || row.Summary || row.summary || '').trim();
+    const pri     = (row.Priority || row.priority || '').trim();
+    const ta      = (row['Therapeutic Area'] || '').trim();
+    const ha      = (row['Health Authority'] || row.Source || '').trim();
+    const pub     = (row['Published Date'] || row.Date || row['Run Date'] || '').trim().slice(0, 16);
+    const impl    = (row.Implications || '').trim();
+    const actions = (row['Action Items'] || '').trim();
+    const company = (row.Company || '').trim();
+    const cat     = (row.Category || '').trim();
+
+    const titleHtml = url
+      ? `<a href="${url}" target="_blank" class="card-title">${title}</a>`
+      : `<span class="card-title">${title}</span>`;
+
+    let tags = priorityTag(pri);
+    if (ta)      tags += `<span class="tag gold">${ta}</span>`;
+    if (ha)      tags += `<span class="tag">${ha}</span>`;
+    if (company) tags += `<span class="tag gold">${company}</span>`;
+    if (cat)     tags += `<span class="tag">${cat}</span>`;
+
+    const detId = `det-${idx}`;
+    const detBtn = (impl || actions)
+      ? `<button class="expand-btn" onclick="toggleDetails('${detId}', this)">↓ Analysis</button>`
+      : '';
+    const detHtml = (impl || actions) ? `
+      <div class="card-details" id="${detId}">
+        ${impl    ? `<strong>Implications:</strong> ${impl}<br><br>` : ''}
+        ${actions ? `<strong>Action Items:</strong> ${actions}` : ''}
+      </div>` : '';
+
+    const isSaved = savedItems.has(title);
+    const saveLabel = isSaved ? '★ Saved' : '☆ Save';
+    const saveClass = isSaved ? 'save-btn saved' : 'save-btn';
+    const saveBtn = opts.isRemove
+      ? `<button class="save-btn" onclick="removeFav('${title.replace(/'/g,"\\'")}', this)">✕ Remove</button>`
+      : `<button class="${saveClass}" onclick="saveItem(this)" ${isSaved ? 'disabled' : ''}>${saveLabel}</button>`;
+
+    return `
+      <div class="card ${priorityClass(pri)}" data-title="${title}" data-priority="${pri.toLowerCase()}" data-ha="${ha.toLowerCase()}" data-ta="${ta.toLowerCase()}">
+        <div class="card-header">
+          ${titleHtml}
+          <span class="card-date">${pub || '—'}</span>
+        </div>
+        <div class="card-summary">${summary ? summary.slice(0, 450) : 'No summary available.'}</div>
+        ${detHtml}
+        <div class="card-footer">
+          <div class="card-tags">${tags}${detBtn}</div>
+          ${saveBtn}
+        </div>
+      </div>`;
+  }
+
+  function buildCards(rows, container, prefix, limit = 10) {
+    const el = document.getElementById(container);
+    if (!rows.length) { el.innerHTML = '<div class="empty">No items match your filters.</div>'; return; }
+    let html = rows.slice(0, limit).map((r, i) => buildCard(r, `${prefix}${i}`)).join('');
+    if (rows.length > limit) {
+      html += `<button class="load-more" onclick="loadMore('${container}', '${prefix}', ${limit})">Load more — ${rows.length - limit} remaining</button>`;
+    }
+    el.innerHTML = html;
+  }
+
+  function loadMore(container, prefix, current) {
+    const key = container.replace('list-', '');
+    const rows = getFilteredData(key);
+    buildCards(rows, container, prefix, current + 10);
+  }
+
+  // ── FILTER ────────────────────────────────────────────────────
+  function getFilteredData(key) {
+    const rows = allData[key] || [];
+    return rows.filter(row => {
+      const text = Object.values(row).join(' ').toLowerCase();
+      const matchSearch = !searchQuery || text.includes(searchQuery);
+      const pri = (row.Priority || '').toLowerCase();
+      const ha  = (row['Health Authority'] || row.Source || '').toLowerCase();
+      const ta  = (row['Therapeutic Area'] || '').toLowerCase();
+      const matchPri = !activeFilters.priority.size || activeFilters.priority.has(pri);
+      const matchHa  = !activeFilters.ha.size  || [...activeFilters.ha].some(f => ha.includes(f));
+      const matchTa  = !activeFilters.ta.size  || [...activeFilters.ta].some(f => ta.includes(f));
+      return matchSearch && matchPri && matchHa && matchTa;
+    });
+  }
+
+  // ── RENDER ALL ────────────────────────────────────────────────
+  function renderAll() {
+    const updates     = getFilteredData('updates');
+    const news        = getFilteredData('news');
+    const competitors = getFilteredData('competitors');
+    const archive     = getFilteredData('archive');
+
+    // Metrics
+    const highCount = [...updates, ...news].filter(r => (r.Priority||'').toLowerCase() === 'high').length;
+    document.getElementById('metric-high').textContent = highCount;
+    document.getElementById('metric-reg').textContent  = allData.updates.length;
+    document.getElementById('metric-news').textContent = allData.news.length;
+    document.getElementById('metric-comp').textContent = allData.competitors.length;
+    document.querySelector('.nav-item:nth-child(2) .nav-badge').textContent = allData.updates.length;
+    document.querySelector('.nav-item:nth-child(3) .nav-badge').textContent = allData.news.length;
+    document.querySelector('.nav-item:nth-child(4) .nav-badge').textContent = allData.competitors.length;
+
+    // Home — high priority + top 5 of each
+    const highAll = [...updates, ...news].filter(r => (r.Priority||'').toLowerCase() === 'high').slice(0, 10);
+    buildCards(highAll, 'list-home-high', 'hh');
+    buildCards(updates.slice(0, 5), 'list-home-reg', 'hr');
+    buildCards(news.slice(0, 5), 'list-home-news', 'hn');
+
+    // Tabs
+    buildCards(updates,     'list-regulatory', 'reg');
+    buildCards(news,        'list-news',       'nws');
+    buildCards(competitors, 'list-competitors','comp');
+    buildCards(archive,     'list-archive',    'arc');
+
+    // Archive count
+    document.querySelector('.archive-note').textContent =
+      `⊡ ${allData.archive.length} items archived · Items older than 7 days are moved here automatically`;
+
+    renderFavorites();
+  }
+
+  // ── FAVORITES ─────────────────────────────────────────────────
+  function renderFavorites() {
+    const favs = allData.favorites.filter(f => !savedItems.has('__removed__' + f.Title));
+    const list  = document.getElementById('favorites-list');
+    const count = document.getElementById('fav-count');
+    const badge = document.getElementById('fav-badge');
+    count.textContent = favs.length + ' saved';
+    badge.textContent = favs.length;
+    badge.style.display = favs.length > 0 ? 'inline' : 'none';
+    if (!favs.length) {
+      list.innerHTML = '<div class="empty">No favorites yet. Click ☆ Save on any item to save it here.</div>';
+      return;
+    }
+    list.innerHTML = [...favs].reverse().map((r, i) => buildCard(r, `fav${i}`, { isRemove: true })).join('');
+  }
+
+  async function saveItem(btn) {
+    const card  = btn.closest('.card');
+    const title = card.dataset.title;
+    if (savedItems.has(title)) return;
+    savedItems.add(title);
+    btn.textContent = '★ Saved';
+    btn.classList.add('saved');
+    btn.disabled = true;
+
+    const allRows = [...allData.updates, ...allData.news, ...allData.competitors];
+    const row = allRows.find(r => (r.Title || '').trim() === title) || {};
+
+    // Optimistic update
+    allData.favorites.push({ ...row, Title: title });
+    renderFavorites();
+
+    try {
+      await fetch(`${API_BASE}/api/favorites`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          Title: title,
+          URL: row.URL || '',
+          Source: row.Source || '',
+          Published_Date: row['Published Date'] || row.Date || '',
+          Priority: row.Priority || '',
+          Therapeutic_Area: row['Therapeutic Area'] || '',
+          AI_Summary: row['AI Summary'] || row.Summary || '',
+        })
+      });
+    } catch (e) { console.error('Save failed:', e); }
+  }
+
+  async function removeFav(title, btn) {
+    allData.favorites = allData.favorites.filter(f => f.Title !== title);
+    savedItems.delete(title);
+    renderFavorites();
+    renderAll();
+    try {
+      await fetch(`${API_BASE}/api/favorites`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title })
+      });
+    } catch (e) { console.error('Remove failed:', e); }
+  }
+
+  // ── TAB SWITCHING ─────────────────────────────────────────────
+  function switchTab(tab, navEl) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.getElementById('panel-' + tab).classList.add('active');
+    if (navEl) navEl.classList.add('active');
+  }
+
+  // ── DETAILS ───────────────────────────────────────────────────
+  function toggleDetails(id, btn) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    btn.textContent = el.classList.contains('open') ? '↑ Analysis' : '↓ Analysis';
+  }
+
+  // ── SEARCH & FILTERS ──────────────────────────────────────────
+  function filterCards(q) {
+    searchQuery = q.toLowerCase().trim();
+    renderAll();
+  }
+
+  function handleSearch(q) {
+    const results = document.getElementById('search-results');
+    if (!q.trim()) {
+      results.innerHTML = '<div class="empty">Type above to search across all intelligence.</div>';
+      return;
+    }
+    const all = [...allData.updates, ...allData.news, ...allData.competitors];
+    const matches = all.filter(r => Object.values(r).join(' ').toLowerCase().includes(q.toLowerCase()));
+    if (!matches.length) {
+      results.innerHTML = `<div class="empty">No results for "<strong>${q}</strong>"</div>`;
+      return;
+    }
+    results.innerHTML = `<div class="section-count" style="margin-bottom:12px">${matches.length} results for "<strong>${q}</strong>"</div>` +
+      matches.slice(0, 20).map((r, i) => buildCard(r, `sr${i}`)).join('');
+  }
+
+  function toggleChip(el, group, val) {
+    el.classList.toggle('active');
+    if (activeFilters[group].has(val)) activeFilters[group].delete(val);
+    else activeFilters[group].add(val);
+    renderAll();
+  }
+
+  // ── REFRESH ───────────────────────────────────────────────────
+  async function handleRefresh() {
+    const icon = document.getElementById('refresh-icon');
+    icon.style.transition = 'transform 0.6s';
+    icon.style.transform = 'rotate(360deg)';
+    setTimeout(() => { icon.style.transition = ''; icon.style.transform = ''; }, 700);
+    await fetchAll();
+    document.getElementById('last-updated').textContent =
+      'updated ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  // ── INIT ──────────────────────────────────────────────────────
+  fetchAll();
+</script>
+</body>
+</html>
