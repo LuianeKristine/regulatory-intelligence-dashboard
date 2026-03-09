@@ -4,7 +4,6 @@ from datetime import datetime, date
 import requests
 import io
 
-# ── PAGE CONFIG ───────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Regulatory Intelligence Platform",
     page_icon="⚕️",
@@ -12,542 +11,348 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── CUSTOM CSS ────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500;600&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
 
   html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-    background-color: #0d1117;
-    color: #e6edf3;
+    font-family: 'IBM Plex Sans', sans-serif;
+    background-color: #f7f5f0;
+    color: #1a1a1a;
   }
+  .main { background-color: #f7f5f0; padding-top: 0 !important; }
+  .block-container { padding-top: 0 !important; max-width: 1200px; }
 
-  .main { background-color: #0d1117; }
-
-  /* Sidebar */
-  section[data-testid="stSidebar"] {
-    background-color: #161b22;
-    border-right: 1px solid #21262d;
+  section[data-testid="stSidebar"] { background-color: #1a1a1a; border-right: none; }
+  section[data-testid="stSidebar"] * { color: #c8c4bc !important; }
+  section[data-testid="stSidebar"] .stTextInput input {
+    background: #2a2a2a !important; border: 1px solid #3a3a3a !important;
+    color: #f0ece4 !important; border-radius: 4px !important;
+    font-family: 'IBM Plex Mono', monospace !important; font-size: 12px !important;
   }
-  section[data-testid="stSidebar"] .stSelectbox label,
-  section[data-testid="stSidebar"] .stMultiSelect label,
-  section[data-testid="stSidebar"] p {
-    color: #8b949e !important;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 600;
+  section[data-testid="stSidebar"] label {
+    color: #555 !important; font-size: 10px !important; font-weight: 600 !important;
+    text-transform: uppercase !important; letter-spacing: 0.12em !important;
   }
+  section[data-testid="stSidebar"] .stDivider { border-color: #2a2a2a !important; }
 
-  /* Header */
   .rip-header {
-    background: linear-gradient(135deg, #0d1117 0%, #161b22 100%);
-    border-bottom: 1px solid #21262d;
-    padding: 28px 0 20px 0;
-    margin-bottom: 32px;
+    background: #1a1a1a; padding: 32px 48px 28px 48px;
+    margin: 0 -4rem 0 -4rem;
+    display: flex; align-items: flex-end; justify-content: space-between;
   }
-  .rip-title {
-    font-family: 'DM Serif Display', serif;
-    font-size: 2.2rem;
-    color: #f0f6fc;
-    letter-spacing: -0.02em;
-    margin: 0;
-  }
-  .rip-subtitle {
-    color: #8b949e;
-    font-size: 0.82rem;
-    font-weight: 400;
-    margin-top: 4px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-  }
+  .rip-logo { font-family: 'Playfair Display', serif; font-size: 2.6rem; color: #f0ece4; letter-spacing: -0.03em; line-height: 1; }
+  .rip-logo span { color: #c8a96e; }
+  .rip-tagline { color: #555; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 6px; }
+  .rip-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #555; text-align: right; }
 
-  /* Metric cards */
-  .metric-card {
-    background: #161b22;
-    border: 1px solid #21262d;
-    border-radius: 10px;
-    padding: 20px 24px;
-    text-align: center;
+  .metric-strip {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: #ddd9d2; border: 1px solid #ddd9d2;
+    margin: 24px 0; border-radius: 6px; overflow: hidden;
   }
-  .metric-number {
-    font-family: 'DM Serif Display', serif;
-    font-size: 2.4rem;
-    color: #58a6ff;
-    line-height: 1;
-  }
-  .metric-label {
-    color: #8b949e;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin-top: 6px;
-  }
+  .metric-cell { background: #fff; padding: 20px 24px; text-align: center; }
+  .metric-num { font-family: 'Playfair Display', serif; font-size: 2.8rem; line-height: 1; color: #1a1a1a; }
+  .metric-num.high { color: #c0392b; }
+  .metric-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #888; margin-top: 4px; }
 
-  /* Priority badges */
-  .badge-high   { background:#3d1a1a; color:#f85149; border:1px solid #6e1a1a; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
-  .badge-medium { background:#2d2a16; color:#e3b341; border:1px solid #5a4a10; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
-  .badge-low    { background:#122116; color:#3fb950; border:1px solid #1a4a25; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
-  .badge-na     { background:#1c2128; color:#8b949e; border:1px solid #30363d; padding:2px 10px; border-radius:20px; font-size:11px; font-weight:600; }
+  .badge-high   { background:#fdf0ef; color:#c0392b; border:1px solid #f5c6c2; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .badge-medium { background:#fdf8ef; color:#b7770d; border:1px solid #f5e2b0; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .badge-low    { background:#eff7f0; color:#27724a; border:1px solid #b0dfc0; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  .badge-na     { background:#f5f5f5; color:#888;    border:1px solid #ddd;    padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
 
-  /* Intelligence cards */
-  .intel-card {
-    background: #161b22;
-    border: 1px solid #21262d;
-    border-radius: 10px;
-    padding: 18px 20px;
-    margin-bottom: 12px;
-    transition: border-color 0.2s;
-  }
-  .intel-card:hover { border-color: #58a6ff44; }
-  .intel-card-high  { border-left: 3px solid #f85149; }
-  .intel-card-medium { border-left: 3px solid #e3b341; }
-  .intel-card-low   { border-left: 3px solid #3fb950; }
-  .intel-card-na    { border-left: 3px solid #30363d; }
+  .intel-card { background:#fff; border:1px solid #e8e4de; border-radius:6px; padding:20px 24px; margin-bottom:10px; transition: box-shadow 0.15s, border-color 0.15s; }
+  .intel-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); border-color:#c8a96e; }
+  .intel-card-high   { border-left:4px solid #c0392b; }
+  .intel-card-medium { border-left:4px solid #e6a817; }
+  .intel-card-low    { border-left:4px solid #27a85a; }
+  .intel-card-na     { border-left:4px solid #ddd9d2; }
 
-  .card-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: #f0f6fc;
-    margin-bottom: 6px;
-    line-height: 1.4;
-  }
-  .card-meta {
-    font-size: 0.75rem;
-    color: #8b949e;
-    margin-bottom: 8px;
-  }
-  .card-summary {
-    font-size: 0.82rem;
-    color: #c9d1d9;
-    line-height: 1.6;
-    margin-bottom: 10px;
-  }
-  .card-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
-    align-items: center;
-  }
-  .tag {
-    background: #21262d;
-    color: #8b949e;
-    border: 1px solid #30363d;
-    padding: 1px 8px;
-    border-radius: 4px;
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-  .tag-blue { background:#0d2140; color:#58a6ff; border-color:#1a3a6a; }
+  .card-title   { font-size:0.92rem; font-weight:600; color:#1a1a1a; margin-bottom:4px; line-height:1.45; }
+  .card-meta    { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#aaa; margin-bottom:10px; }
+  .card-summary { font-size:0.82rem; color:#444; line-height:1.65; margin-bottom:12px; }
+  .card-tags    { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
+  .tag { background:#f5f5f2; color:#777; border:1px solid #e0dbd3; padding:1px 8px; border-radius:3px; font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; font-family:'IBM Plex Mono',monospace; }
+  .tag-gold { background:#fdf5e6; color:#b7770d; border-color:#f0d89a; }
 
-  /* Section headers */
-  .section-header {
-    font-family: 'DM Serif Display', serif;
-    font-size: 1.3rem;
-    color: #f0f6fc;
-    border-bottom: 1px solid #21262d;
-    padding-bottom: 10px;
-    margin-bottom: 20px;
-    margin-top: 8px;
-  }
+  .section-hdr { font-family:'Playfair Display',serif; font-size:1.25rem; color:#1a1a1a; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:20px; margin-top:8px; }
+  .item-count  { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#aaa; margin-bottom:16px; }
 
-  /* Search bar */
-  .stTextInput input {
-    background-color: #161b22 !important;
-    border: 1px solid #30363d !important;
-    color: #f0f6fc !important;
-    border-radius: 8px !important;
-    font-family: 'DM Sans', sans-serif !important;
-  }
-  .stTextInput input:focus {
-    border-color: #58a6ff !important;
-    box-shadow: 0 0 0 2px #58a6ff22 !important;
-  }
+  .stTabs [data-baseweb="tab-list"] { background:transparent; border-bottom:2px solid #e8e4de; gap:0; padding:0; }
+  .stTabs [data-baseweb="tab"] { color:#aaa !important; font-family:'IBM Plex Sans',sans-serif !important; font-size:0.8rem !important; font-weight:500 !important; padding:10px 20px !important; border-radius:0 !important; border-bottom:2px solid transparent !important; margin-bottom:-2px !important; }
+  .stTabs [aria-selected="true"] { color:#1a1a1a !important; border-bottom:2px solid #1a1a1a !important; background:transparent !important; }
 
-  /* Tabs */
-  .stTabs [data-baseweb="tab-list"] {
-    background-color: #161b22;
-    border-radius: 8px;
-    padding: 4px;
-    gap: 2px;
-  }
-  .stTabs [data-baseweb="tab"] {
-    color: #8b949e !important;
-    font-family: 'DM Sans', sans-serif !important;
-    font-size: 0.82rem !important;
-    font-weight: 500 !important;
-    padding: 6px 16px !important;
-    border-radius: 6px !important;
-  }
-  .stTabs [aria-selected="true"] {
-    background-color: #21262d !important;
-    color: #f0f6fc !important;
-  }
+  details { background:#fafaf8 !important; border:1px solid #e8e4de !important; border-radius:4px !important; margin-top:4px; }
+  summary { font-size:12px !important; color:#888 !important; padding:8px 12px !important; }
 
-  /* Expander */
-  .streamlit-expanderHeader {
-    background-color: #161b22 !important;
-    border: 1px solid #21262d !important;
-    border-radius: 8px !important;
-    color: #c9d1d9 !important;
-    font-size: 0.85rem !important;
-  }
-  .streamlit-expanderContent {
-    background-color: #161b22 !important;
-    border: 1px solid #21262d !important;
-    border-top: none !important;
-  }
+  .stTextInput input { background:#fff !important; border:1px solid #e0dbd3 !important; border-radius:4px !important; font-family:'IBM Plex Mono',monospace !important; font-size:13px !important; color:#1a1a1a !important; }
 
-  /* Scrollbar */
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #0d1117; }
-  ::-webkit-scrollbar-thumb { background: #30363d; border-radius: 3px; }
+  .archive-note { background:#fafaf8; border:1px solid #e8e4de; border-radius:6px; padding:12px 16px; font-size:11px; color:#888; margin-bottom:20px; font-family:'IBM Plex Mono',monospace; }
 
-  /* Hide Streamlit branding */
+  .stButton button { background:#1a1a1a !important; color:#f0ece4 !important; border:none !important; border-radius:4px !important; font-family:'IBM Plex Sans',sans-serif !important; font-size:12px !important; }
+  .stButton button:hover { background:#333 !important; }
+
   #MainMenu, footer, header { visibility: hidden; }
-  .viewerBadge_container__1QSob { display: none; }
+  .viewerBadge_container__1QSob { display: none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-
-# ── GOOGLE SHEETS CONNECTION (public, read-only) ─────────────────────────────
+# ── DATA ──────────────────────────────────────────────────────────────────────
 SHEET_ID = "1VIkRptXrV0HPjTxuzq96wVx67rBtbk8tW-acGop5DME"
-
-TAB_IDS = {
+TAB_IDS  = {
     "Updates":     "1528624300",
     "News":        "685156462",
     "Competitors": "1451797372",
+    "Archive":     "859959561",
 }
 
 @st.cache_data(ttl=300)
-def load_tab(tab_name: str) -> pd.DataFrame:
+def load_tab(tab_name):
     try:
-        gid = TAB_IDS.get(tab_name, "0")
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={gid}"
-        r = requests.get(url, timeout=15)
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid={TAB_IDS[tab_name]}"
+        r   = requests.get(url, timeout=15)
         r.raise_for_status()
-        df = pd.read_csv(io.StringIO(r.text))
-        return df
+        return pd.read_csv(io.StringIO(r.text))
     except Exception as e:
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
 
-
 # ── HELPERS ───────────────────────────────────────────────────────────────────
-def priority_badge(p: str) -> str:
+def high_count(df):
+    if df.empty or "Priority" not in df.columns: return 0
+    return int((df["Priority"].fillna("").str.strip().str.lower() == "high").sum())
+
+def priority_badge(p):
     p = str(p).strip().lower()
     if p == "high":   return '<span class="badge-high">HIGH</span>'
-    if p == "medium": return '<span class="badge-medium">MEDIUM</span>'
+    if p == "medium": return '<span class="badge-medium">MED</span>'
     if p == "low":    return '<span class="badge-low">LOW</span>'
     return '<span class="badge-na">—</span>'
 
-def card_class(p: str) -> str:
+def card_border(p):
     p = str(p).strip().lower()
     if p == "high":   return "intel-card intel-card-high"
     if p == "medium": return "intel-card intel-card-medium"
     if p == "low":    return "intel-card intel-card-low"
     return "intel-card intel-card-na"
 
-def render_card(row: pd.Series, show_source=True):
-    title   = str(row.get("Title", "")).strip() or "Untitled"
-    url     = str(row.get("URL", "")).strip()
+def render_card(row, show_source=True):
+    title   = str(row.get("Title",   "")).strip() or "Untitled"
+    url     = str(row.get("URL",     "")).strip()
     summary = str(row.get("AI Summary", row.get("Summary", ""))).strip()
-    pri     = str(row.get("Priority", "")).strip()
-    ta      = str(row.get("Therapeutic Area", "")).strip()
-    ha      = str(row.get("Health Authority", row.get("Source", ""))).strip()
-    pub     = str(row.get("Published Date", row.get("Date", ""))).strip()[:16]
-    source  = str(row.get("Source", row.get("Feed", ""))).strip()
-    impl    = str(row.get("Implications", "")).strip()
-    actions = str(row.get("Action Items", "")).strip()
+    pri     = str(row.get("Priority","")).strip()
+    ta      = str(row.get("Therapeutic Area","")).strip()
+    ha      = str(row.get("Health Authority", row.get("Source",""))).strip()
+    pub     = str(row.get("Published Date", row.get("Date",""))).strip()[:16]
+    source  = str(row.get("Source","")).strip()
+    impl    = str(row.get("Implications","")).strip()
+    actions = str(row.get("Action Items","")).strip()
 
-    title_html = f'<a href="{url}" target="_blank" style="color:#f0f6fc;text-decoration:none;">{title}</a>' if url else title
+    title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+    tags = ""
+    if ta and ta not in ("-",""):  tags += f'<span class="tag tag-gold">{ta}</span>'
+    if ha and ha not in ("-",""):  tags += f'<span class="tag">{ha}</span>'
+    if show_source and source:     tags += f'<span class="tag">{source}</span>'
 
-    tags_html = ""
-    if ta and ta not in ("-", ""):
-        tags_html += f'<span class="tag tag-blue">{ta}</span>'
-    if ha and ha not in ("-", ""):
-        tags_html += f'<span class="tag">{ha}</span>'
-    if show_source and source:
-        tags_html += f'<span class="tag">{source}</span>'
-
-    meta = pub
-    if not meta:
-        meta = "—"
-
-    html = f"""
-    <div class="{card_class(pri)}">
+    st.markdown(f"""
+    <div class="{card_border(pri)}">
       <div class="card-title">{title_html}</div>
-      <div class="card-meta">{meta}</div>
-      <div class="card-summary">{summary[:400] if summary else "No summary available."}</div>
-      <div class="card-tags">{priority_badge(pri)}{tags_html}</div>
-    </div>
-    """
-    st.markdown(html, unsafe_allow_html=True)
+      <div class="card-meta">{pub or "—"}</div>
+      <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
+      <div class="card-tags">{priority_badge(pri)}{tags}</div>
+    </div>""", unsafe_allow_html=True)
 
     if impl or actions:
         with st.expander("Analysis details"):
-            if impl:
-                st.markdown(f"**Implications:** {impl}")
-            if actions:
-                st.markdown(f"**Action Items:** {actions}")
-
+            if impl:    st.markdown(f"**Implications:** {impl}")
+            if actions: st.markdown(f"**Action Items:** {actions}")
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
-    if df.empty:
-        return df
+    if df.empty: return df
     if search:
         mask = df.apply(lambda r: search.lower() in " ".join(r.astype(str).values).lower(), axis=1)
         df = df[mask]
     if ha_filter:
-        df = df[df.get("Health Authority", df.get("Source", pd.Series(dtype=str))).str.contains("|".join(ha_filter), case=False, na=False)]
-    if ta_filter:
-        df = df[df.get("Therapeutic Area", pd.Series(dtype=str)).str.contains("|".join(ta_filter), case=False, na=False)]
-    if pri_filter:
-        df = df[df.get("Priority", pd.Series(dtype=str)).str.lower().isin([p.lower() for p in pri_filter])]
+        col = "Health Authority" if "Health Authority" in df.columns else "Source"
+        if col in df.columns:
+            df = df[df[col].fillna("").str.contains("|".join(ha_filter), case=False, na=False)]
+    if ta_filter and "Therapeutic Area" in df.columns:
+        df = df[df["Therapeutic Area"].fillna("").str.contains("|".join(ta_filter), case=False, na=False)]
+    if pri_filter and "Priority" in df.columns:
+        df = df[df["Priority"].fillna("").str.lower().isin([p.lower() for p in pri_filter])]
     return df
-
 
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding:16px 0 24px 0;">
-      <div style="font-family:'DM Serif Display',serif;font-size:1.1rem;color:#f0f6fc;">⚕ RIP</div>
-      <div style="color:#8b949e;font-size:10px;text-transform:uppercase;letter-spacing:0.1em;margin-top:2px;">Regulatory Intelligence</div>
-    </div>
-    """, unsafe_allow_html=True)
+    <div style="padding:24px 0 28px 0;">
+      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:#f0ece4;">⚕ RIP</div>
+      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Regulatory Intelligence</div>
+    </div>""", unsafe_allow_html=True)
 
-    st.markdown("**SEARCH**")
-    search_query = st.text_input("", placeholder="Search all intelligence…", label_visibility="collapsed")
-
+    search_query      = st.text_input("Search", placeholder="keyword search…")
     st.divider()
-    st.markdown("**FILTERS**")
-
-    priority_options = ["High", "Medium", "Low"]
-    selected_priority = st.multiselect("Priority", priority_options, default=[])
-
-    ha_options = ["FDA", "EMA", "ICH", "FDA/EMA", "Other"]
-    selected_ha = st.multiselect("Health Authority", ha_options, default=[])
-
-    ta_options = ["Oncology", "Gene Therapy", "Cell Therapy", "Rare Disease", "Autoimmune", "General"]
-    selected_ta = st.multiselect("Therapeutic Area", ta_options, default=[])
-
+    selected_priority = st.multiselect("Priority",         ["High","Medium","Low"], default=[])
+    selected_ha       = st.multiselect("Health Authority", ["FDA","EMA","ICH"],     default=[])
+    selected_ta       = st.multiselect("Therapeutic Area", ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"], default=[])
     st.divider()
-    if st.button("🔄  Refresh Data", use_container_width=True):
+    if st.button("↺  Refresh", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
-
-    st.markdown(f"""
-    <div style="color:#8b949e;font-size:10px;text-align:center;margin-top:16px;">
-      Last updated<br>{datetime.now().strftime("%b %d, %Y %H:%M")}
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.markdown(f'<div style="color:#333;font-size:9px;text-align:center;margin-top:12px;font-family:IBM Plex Mono,monospace;">updated {datetime.now().strftime("%H:%M")}</div>', unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class="rip-header">
-  <div class="rip-title">Regulatory Intelligence Platform</div>
-  <div class="rip-subtitle">Automated pharmaceutical intelligence — {date.today().strftime("%B %d, %Y")}</div>
+  <div>
+    <div class="rip-logo">Regulatory<span>.</span>Intelligence</div>
+    <div class="rip-tagline">Automated pharmaceutical surveillance platform</div>
+  </div>
+  <div class="rip-date">
+    {date.today().strftime("%A, %B %d %Y")}<br>
+    <span style="color:#c8a96e;">Live · Refreshes every 5 min</span>
+  </div>
 </div>
 """, unsafe_allow_html=True)
 
-
 # ── LOAD DATA ─────────────────────────────────────────────────────────────────
-with st.spinner("Loading intelligence data…"):
+with st.spinner(""):
     df_updates     = load_tab("Updates")
     df_news        = load_tab("News")
     df_competitors = load_tab("Competitors")
+    df_archive     = load_tab("Archive")
 
+# ── METRICS ───────────────────────────────────────────────────────────────────
+high_total = high_count(df_updates) + high_count(df_news)
+high_class = "metric-num high" if high_total > 0 else "metric-num"
 
-# ── METRIC CARDS ─────────────────────────────────────────────────────────────
-c1, c2, c3, c4, c5 = st.columns(5)
-
-def high_count(df):
-    if df.empty or "Priority" not in df.columns: return 0
-    return int((df["Priority"].fillna("").str.lower() == "high").sum())
-
-total_items  = len(df_updates) + len(df_news) + len(df_competitors)
-high_total   = high_count(df_updates) + high_count(df_news)
-reg_count    = len(df_updates)
-news_count   = len(df_news)
-comp_count   = len(df_competitors)
-
-for col, num, label in [
-    (c1, total_items, "Total Items"),
-    (c2, high_total,  "High Priority"),
-    (c3, reg_count,   "Regulatory"),
-    (c4, news_count,  "News"),
-    (c5, comp_count,  "Competitors"),
-]:
-    with col:
-        st.markdown(f"""
-        <div class="metric-card">
-          <div class="metric-number">{num}</div>
-          <div class="metric-label">{label}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-st.markdown("<div style='margin-top:32px;'></div>", unsafe_allow_html=True)
-
+st.markdown(f"""
+<div class="metric-strip">
+  <div class="metric-cell"><div class="{high_class}">{high_total}</div><div class="metric-lbl">🚨 High Priority</div></div>
+  <div class="metric-cell"><div class="metric-num">{len(df_updates)}</div><div class="metric-lbl">🏛 Regulatory</div></div>
+  <div class="metric-cell"><div class="metric-num">{len(df_news)}</div><div class="metric-lbl">📰 News</div></div>
+  <div class="metric-cell"><div class="metric-num">{len(df_competitors)}</div><div class="metric-lbl">🔎 Competitors</div></div>
+</div>
+""", unsafe_allow_html=True)
 
 # ── TABS ──────────────────────────────────────────────────────────────────────
-tab_home, tab_regulatory, tab_news, tab_competitors, tab_search = st.tabs([
-    "🏠  Home", "🏛  Regulatory", "📰  News", "🔎  Competitors", "🔍  Search"
+tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc = st.tabs([
+    "Home", "Regulatory", "News", "Competitors", "Search", "Archive"
 ])
 
-
-# ─── HOME TAB ─────────────────────────────────────────────────────────────────
+# HOME
 with tab_home:
-    st.markdown('<div class="section-header">🚨 High Priority Items</div>', unsafe_allow_html=True)
-
-    high_updates = df_updates[df_updates["Priority"].str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
-    high_news    = df_news[df_news["Priority"].str.lower() == "high"] if not df_news.empty and "Priority" in df_news.columns else pd.DataFrame()
-    high_all     = pd.concat([high_updates, high_news]).head(10)
-
+    st.markdown('<div class="section-hdr">🚨 High Priority</div>', unsafe_allow_html=True)
+    high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
+    high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
+    high_all = pd.concat([high_u, high_n]).head(10)
     if high_all.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No high priority items today.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card intel-card-na" style="color:#aaa;text-align:center;padding:32px;">No high priority items today.</div>', unsafe_allow_html=True)
     else:
-        for _, row in high_all.iterrows():
-            render_card(row)
+        for _, row in high_all.iterrows(): render_card(row)
 
-    st.markdown('<div class="section-header" style="margin-top:32px;">📋 Latest Regulatory Updates</div>', unsafe_allow_html=True)
-    recent_updates = df_updates.head(5) if not df_updates.empty else pd.DataFrame()
-    if recent_updates.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No regulatory updates available.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest Regulatory Updates</div>', unsafe_allow_html=True)
+    for _, row in df_updates.head(5).iterrows(): render_card(row)
+
+    st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest News</div>', unsafe_allow_html=True)
+    for _, row in df_news.head(5).iterrows(): render_card(row)
+
+# REGULATORY
+with tab_reg:
+    st.markdown('<div class="section-hdr">Regulatory Updates — FDA / EMA / ICH</div>', unsafe_allow_html=True)
+    df_f = filter_df(df_updates, search_query, selected_ha, selected_ta, selected_priority)
+    st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
+    if df_f.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
     else:
-        for _, row in recent_updates.iterrows():
-            render_card(row)
+        for _, row in df_f.iterrows(): render_card(row)
 
-    st.markdown('<div class="section-header" style="margin-top:32px;">📰 Latest News</div>', unsafe_allow_html=True)
-    recent_news = df_news.head(5) if not df_news.empty else pd.DataFrame()
-    if recent_news.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No news available.</div>', unsafe_allow_html=True)
+# NEWS
+with tab_news_t:
+    st.markdown('<div class="section-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
+    df_f  = filter_df(df_news, search_query, selected_ha, selected_ta, selected_priority)
+    st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
+    group = st.toggle("Group by source", value=False)
+    if df_f.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
+    elif group and "Source" in df_f.columns:
+        for src in df_f["Source"].unique():
+            src_df = df_f[df_f["Source"] == src]
+            with st.expander(f"{src} — {len(src_df)} items"):
+                for _, row in src_df.iterrows(): render_card(row, show_source=False)
     else:
-        for _, row in recent_news.iterrows():
-            render_card(row)
+        for _, row in df_f.iterrows(): render_card(row)
 
-
-# ─── REGULATORY TAB ───────────────────────────────────────────────────────────
-with tab_regulatory:
-    st.markdown('<div class="section-header">🏛 Regulatory Updates — FDA / EMA / ICH</div>', unsafe_allow_html=True)
-
-    df_reg_filtered = filter_df(df_updates, search_query, selected_ha, selected_ta, selected_priority)
-
-    if df_reg_filtered.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
+# COMPETITORS
+with tab_comp:
+    st.markdown('<div class="section-hdr">Competitive Intelligence</div>', unsafe_allow_html=True)
+    df_f = df_competitors.copy()
+    if search_query and not df_f.empty:
+        mask = df_f.apply(lambda r: search_query.lower() in " ".join(r.astype(str).values).lower(), axis=1)
+        df_f = df_f[mask]
+    st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
+    if df_f.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No competitor intelligence available.</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div style="color:#8b949e;font-size:12px;margin-bottom:16px;">{len(df_reg_filtered)} items</div>', unsafe_allow_html=True)
-        for _, row in df_reg_filtered.iterrows():
-            render_card(row)
-
-
-# ─── NEWS TAB ─────────────────────────────────────────────────────────────────
-with tab_news:
-    st.markdown('<div class="section-header">📰 Industry News & Publications</div>', unsafe_allow_html=True)
-
-    df_news_filtered = filter_df(df_news, search_query, selected_ha, selected_ta, selected_priority)
-
-    if df_news_filtered.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
-    else:
-        st.markdown(f'<div style="color:#8b949e;font-size:12px;margin-bottom:16px;">{len(df_news_filtered)} items</div>', unsafe_allow_html=True)
-
-        # Group by source
-        sources = df_news_filtered["Source"].unique() if "Source" in df_news_filtered.columns else ["All"]
-        show_all = st.toggle("Group by source", value=False)
-
-        if show_all and "Source" in df_news_filtered.columns:
-            for src in sources:
-                src_df = df_news_filtered[df_news_filtered["Source"] == src]
-                with st.expander(f"**{src}** — {len(src_df)} items"):
-                    for _, row in src_df.iterrows():
-                        render_card(row, show_source=False)
-        else:
-            for _, row in df_news_filtered.iterrows():
-                render_card(row)
-
-
-# ─── COMPETITORS TAB ──────────────────────────────────────────────────────────
-with tab_competitors:
-    st.markdown('<div class="section-header">🔎 Competitive Intelligence</div>', unsafe_allow_html=True)
-
-    if df_competitors.empty:
-        st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No competitor intelligence available.</div>', unsafe_allow_html=True)
-    else:
-        search_comp = search_query
-        df_comp_filtered = df_competitors.copy()
-        if search_comp:
-            mask = df_comp_filtered.apply(lambda r: search_comp.lower() in " ".join(r.astype(str).values).lower(), axis=1)
-            df_comp_filtered = df_comp_filtered[mask]
-
-        st.markdown(f'<div style="color:#8b949e;font-size:12px;margin-bottom:16px;">{len(df_comp_filtered)} items</div>', unsafe_allow_html=True)
-
-        for _, row in df_comp_filtered.iterrows():
-            title   = str(row.get("Title", "")).strip() or "Untitled"
-            url     = str(row.get("URL", "")).strip()
+        for _, row in df_f.iterrows():
+            title   = str(row.get("Title",   "")).strip() or "Untitled"
+            url     = str(row.get("URL",     "")).strip()
             summary = str(row.get("Summary", "")).strip()
             company = str(row.get("Company", "")).strip()
-            cat     = str(row.get("Category", "")).strip()
-            source  = str(row.get("Source", "")).strip()
-            dt      = str(row.get("Date", row.get("Run Date", ""))).strip()[:16]
-            notes   = str(row.get("Notes", "")).strip()
-
-            title_html = f'<a href="{url}" target="_blank" style="color:#f0f6fc;text-decoration:none;">{title}</a>' if url else title
-
-            tags_html = ""
-            if company: tags_html += f'<span class="tag tag-blue">{company}</span>'
-            if cat:     tags_html += f'<span class="tag">{cat}</span>'
-            if source:  tags_html += f'<span class="tag">{source}</span>'
-
+            cat     = str(row.get("Category","")).strip()
+            source  = str(row.get("Source",  "")).strip()
+            dt      = str(row.get("Date", row.get("Run Date",""))).strip()[:16]
+            notes   = str(row.get("Notes",   "")).strip()
+            title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+            tags = ""
+            if company: tags += f'<span class="tag tag-gold">{company}</span>'
+            if cat:     tags += f'<span class="tag">{cat}</span>'
+            if source:  tags += f'<span class="tag">{source}</span>'
             st.markdown(f"""
             <div class="intel-card intel-card-na">
               <div class="card-title">{title_html}</div>
-              <div class="card-meta">{dt}</div>
-              <div class="card-summary">{summary[:400] if summary else "No summary available."}</div>
-              <div class="card-tags">{tags_html}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
+              <div class="card-meta">{dt or "—"}</div>
+              <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
+              <div class="card-tags">{tags}</div>
+            </div>""", unsafe_allow_html=True)
             if notes:
-                with st.expander("Details"):
-                    st.markdown(notes)
+                with st.expander("Details"): st.markdown(notes)
 
-
-# ─── SEARCH TAB ───────────────────────────────────────────────────────────────
+# SEARCH
 with tab_search:
-    st.markdown('<div class="section-header">🔍 Search All Intelligence</div>', unsafe_allow_html=True)
-
-    search_input = st.text_input("", placeholder="Search across regulatory updates, news, and competitors…",
-                                  key="search_main", label_visibility="collapsed")
-
-    if search_input:
-        results_updates     = filter_df(df_updates, search_input)
-        results_news        = filter_df(df_news, search_input)
-        results_competitors = filter_df(df_competitors, search_input)
-
-        total_results = len(results_updates) + len(results_news) + len(results_competitors)
-        st.markdown(f'<div style="color:#8b949e;font-size:12px;margin-bottom:20px;">{total_results} results for "<strong style="color:#f0f6fc;">{search_input}</strong>"</div>', unsafe_allow_html=True)
-
-        if not results_updates.empty:
-            st.markdown(f'<div style="color:#58a6ff;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Regulatory ({len(results_updates)})</div>', unsafe_allow_html=True)
-            for _, row in results_updates.iterrows():
-                render_card(row)
-
-        if not results_news.empty:
-            st.markdown(f'<div style="color:#58a6ff;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px 0;">News ({len(results_news)})</div>', unsafe_allow_html=True)
-            for _, row in results_news.iterrows():
-                render_card(row)
-
-        if not results_competitors.empty:
-            st.markdown(f'<div style="color:#58a6ff;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;margin:20px 0 10px 0;">Competitors ({len(results_competitors)})</div>', unsafe_allow_html=True)
-            for _, row in results_competitors.head(20).iterrows():
-                render_card(row)
-
-        if total_results == 0:
-            st.markdown('<div class="intel-card" style="color:#8b949e;text-align:center;padding:32px;">No results found.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
+    q = st.text_input("", placeholder="Search across all data…", key="search_main", label_visibility="collapsed")
+    if q:
+        r_u = filter_df(df_updates, q)
+        r_n = filter_df(df_news,    q)
+        r_c = filter_df(df_competitors, q)
+        total = len(r_u) + len(r_n) + len(r_c)
+        st.markdown(f'<div class="item-count">{total} results for <strong style="color:#1a1a1a">{q}</strong></div>', unsafe_allow_html=True)
+        if not r_u.empty:
+            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Regulatory ({len(r_u)})</div>', unsafe_allow_html=True)
+            for _, row in r_u.iterrows(): render_card(row)
+        if not r_n.empty:
+            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">News ({len(r_n)})</div>', unsafe_allow_html=True)
+            for _, row in r_n.iterrows(): render_card(row)
+        if not r_c.empty:
+            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors ({len(r_c)})</div>', unsafe_allow_html=True)
+            for _, row in r_c.head(20).iterrows(): render_card(row)
+        if total == 0:
+            st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No results found.</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div style="color:#8b949e;text-align:center;padding:48px;font-size:0.9rem;">Type something above to search across all intelligence.</div>', unsafe_allow_html=True)
+        st.markdown('<div style="color:#bbb;text-align:center;padding:48px;font-size:0.85rem;">Type above to search across all intelligence.</div>', unsafe_allow_html=True)
+
+# ARCHIVE
+with tab_arc:
+    st.markdown('<div class="section-hdr">Archive</div>', unsafe_allow_html=True)
+    arc_count = len(df_archive) if not df_archive.empty else 0
+    st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
+    if df_archive.empty:
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">Archive is empty.</div>', unsafe_allow_html=True)
+    else:
+        arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
+        df_arc_f = filter_df(df_archive, arc_q)
+        st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
+        for _, row in df_arc_f.head(50).iterrows(): render_card(row)
+        if len(df_arc_f) > 50:
+            st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
