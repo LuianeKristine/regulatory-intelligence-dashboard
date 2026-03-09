@@ -368,7 +368,7 @@ c1, c2, c3, c4, c5 = st.columns(5)
 
 def high_count(df):
     if df.empty or "Priority" not in df.columns: return 0
-    return int((df["Priority"].str.lower() == "high").sum())
+    return int((df["Priority"].fillna("").str.lower() == "high").sum())
 
 total_items  = len(df_updates) + len(df_news) + len(df_competitors)
 high_total   = high_count(df_updates) + high_count(df_news)
@@ -404,8 +404,8 @@ tab_home, tab_regulatory, tab_news, tab_competitors, tab_search = st.tabs([
 with tab_home:
     st.markdown('<div class="section-header">🚨 High Priority Items</div>', unsafe_allow_html=True)
 
-    high_updates = df_updates[df_updates.get("Priority", pd.Series(dtype=str)).str.lower() == "high"] if not df_updates.empty else pd.DataFrame()
-    high_news    = df_news[df_news.get("Priority", pd.Series(dtype=str)).str.lower() == "high"] if not df_news.empty else pd.DataFrame()
+    high_updates = df_updates[df_updates["Priority"].str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
+    high_news    = df_news[df_news["Priority"].str.lower() == "high"] if not df_news.empty and "Priority" in df_news.columns else pd.DataFrame()
     high_all     = pd.concat([high_updates, high_news]).head(10)
 
     if high_all.empty:
