@@ -211,6 +211,22 @@ st.markdown("""
   .badge-low    { background: var(--low-bg);  color: var(--low);  border: 1px solid var(--low-border);  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
   .badge-na     { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
 
+  /* SAVE BUTTON — inline below card, small and subtle */
+  div[data-testid="stButton"] > button[kind="secondary"] {
+    background: transparent !important;
+    border: none !important;
+    color: var(--text-muted) !important;
+    font-size: 11px !important;
+    padding: 0 4px !important;
+    margin-top: -2px !important;
+    margin-bottom: 10px !important;
+    box-shadow: none !important;
+  }
+  div[data-testid="stButton"] > button[kind="secondary"]:hover {
+    color: var(--text-primary) !important;
+    background: transparent !important;
+  }
+
   /* TABS */
   .stTabs [data-baseweb="tab-list"] {
     background: transparent !important;
@@ -352,7 +368,6 @@ def load_tab(tab_name):
         ws = gc.open(SHEET_NAME).worksheet(tab_name)
         data = ws.get_all_records()
         df = pd.DataFrame(data) if data else pd.DataFrame()
-        # Filter soft-deleted favorites
         if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
             df = df[df["Deleted"].fillna("") != "deleted"]
         return df
@@ -366,7 +381,7 @@ def save_favorite(row):
         ss = gc.open(SHEET_NAME)
         try:
             ws = ss.worksheet("Favorites")
-        except Exception as e1:
+        except Exception:
             try:
                 ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
                 ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At","Deleted"])
@@ -441,55 +456,50 @@ def render_card(row, show_source=True, idx=None):
     </div>""", unsafe_allow_html=True)
 
     if impl or actions:
-        with st.expander("Analysis details", key=f"exp_{idx}_{hash(title+pub)}"):
+        with st.expander("Analysis details"):
             if impl:    st.markdown(f"**Implications:** {impl}")
             if actions: st.markdown(f"**Action Items:** {actions}")
 
-    col1, col2 = st.columns([6,1])
-    with col2:
-        already_saved = title in st.session_state.get("saved_favs", set())
-        btn_label = "⭐ Saved" if already_saved else "☆ Save"
-        if st.button(btn_label, key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites", disabled=already_saved):
-            # 1. Show instantly
-            if "saved_favs" not in st.session_state:
-                st.session_state["saved_favs"] = set()
-            if "pending_favs" not in st.session_state:
-                st.session_state["pending_favs"] = []
-            from datetime import timezone, timedelta
-            BR_TZ = timezone(timedelta(hours=-3))
-            saved_at = datetime.now(BR_TZ).strftime("%Y-%m-%d %H:%M")
-            st.session_state["saved_favs"].add(title)
-            st.session_state["pending_favs"].append({
-                "Title": title,
-                "URL": url,
-                "Source": source,
-                "Published Date": pub,
-                "Priority": pri,
-                "Therapeutic Area": ta,
-                "AI Summary": summary,
-                "Saved At": saved_at,
-                "Deleted": "",
-            })
-            # Write to Sheets in background thread — never blocks rerun
-            def _write(t, u, s, p, pr, ta_, sm, dt, sheet_name, secrets):
-                try:
-                    creds = Credentials.from_service_account_info(secrets, scopes=[
-                        "https://spreadsheets.google.com/feeds",
-                        "https://www.googleapis.com/auth/drive",
-                    ])
-                    gc2 = gspread.authorize(creds)
-                    ws2 = gc2.open(sheet_name).worksheet("Favorites")
-                    ws2.append_row([t, u, s, p, pr, ta_, sm, dt, ""])
-                except Exception:
-                    pass
-            threading.Thread(
-                target=_write,
-                args=(title, url, source, pub, pri, ta, summary,
-                      saved_at,
-                      SHEET_NAME, dict(st.secrets["gcp_service_account"])),
-                daemon=True
-            ).start()
-            st.rerun()
+    already_saved = title in st.session_state.get("saved_favs", set())
+    btn_label = "⭐ Saved" if already_saved else "☆ Save"
+    if st.button(btn_label, key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites", disabled=already_saved):
+        if "saved_favs" not in st.session_state:
+            st.session_state["saved_favs"] = set()
+        if "pending_favs" not in st.session_state:
+            st.session_state["pending_favs"] = []
+        from datetime import timezone, timedelta
+        BR_TZ = timezone(timedelta(hours=-3))
+        saved_at = datetime.now(BR_TZ).strftime("%Y-%m-%d %H:%M")
+        st.session_state["saved_favs"].add(title)
+        st.session_state["pending_favs"].append({
+            "Title": title,
+            "URL": url,
+            "Source": source,
+            "Published Date": pub,
+            "Priority": pri,
+            "Therapeutic Area": ta,
+            "AI Summary": summary,
+            "Saved At": saved_at,
+            "Deleted": "",
+        })
+        def _write(t, u, s, p, pr, ta_, sm, dt, sheet_name, secrets):
+            try:
+                creds = Credentials.from_service_account_info(secrets, scopes=[
+                    "https://spreadsheets.google.com/feeds",
+                    "https://www.googleapis.com/auth/drive",
+                ])
+                gc2 = gspread.authorize(creds)
+                ws2 = gc2.open(sheet_name).worksheet("Favorites")
+                ws2.append_row([t, u, s, p, pr, ta_, sm, dt, ""])
+            except Exception:
+                pass
+        threading.Thread(
+            target=_write,
+            args=(title, url, source, pub, pri, ta, summary,
+                  saved_at, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
+            daemon=True
+        ).start()
+        st.rerun()
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
@@ -566,7 +576,7 @@ tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs(
     "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
 ])
 
-# HOME
+# ── HOME ──────────────────────────────────────────────────────────────────────
 with tab_home:
     high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
     high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
@@ -611,33 +621,34 @@ with tab_home:
     </div>
     """, unsafe_allow_html=True)
 
-# REGULATORY
+# ── REGULATORY ────────────────────────────────────────────────────────────────
 with tab_reg:
     st.markdown('<div class="section-hdr">Regulatory Updates — FDA / EMA / ICH</div>', unsafe_allow_html=True)
     df_f = filter_df(df_updates, search_query, selected_ha, selected_ta, selected_priority)
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
-        st.markdown('<div class="intel-card" class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
     else:
         paginated(df_f, "page_reg", "reg")
 
-# NEWS
+# ── NEWS ──────────────────────────────────────────────────────────────────────
 with tab_news_t:
     st.markdown('<div class="section-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
     df_f  = filter_df(df_news, search_query, selected_ha, selected_ta, selected_priority)
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     group = st.toggle("Group by source", value=False)
     if df_f.empty:
-        st.markdown('<div class="intel-card" class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
     elif group and "Source" in df_f.columns:
         for src in df_f["Source"].unique():
             src_df = df_f[df_f["Source"] == src]
             with st.expander(f"{src} — {len(src_df)} items"):
-                for _i, (_idx, row) in enumerate(src_df.iterrows()): render_card(row, show_source=False, idx=f"src{_i}")
+                for _i, (_idx, row) in enumerate(src_df.iterrows()):
+                    render_card(row, show_source=False, idx=f"src{_i}")
     else:
         paginated(df_f, "page_news", "news")
 
-# COMPETITORS
+# ── COMPETITORS ───────────────────────────────────────────────────────────────
 with tab_comp:
     st.markdown('<div class="section-hdr">Competitive Intelligence</div>', unsafe_allow_html=True)
     df_f = df_competitors.copy()
@@ -646,9 +657,10 @@ with tab_comp:
         df_f = df_f[mask]
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
-        st.markdown('<div class="intel-card" class="empty-state">No competitor intelligence available.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">No competitor intelligence available.</div>', unsafe_allow_html=True)
     else:
-        if "page_comp" not in st.session_state: st.session_state["page_comp"] = PAGE_SIZE
+        if "page_comp" not in st.session_state:
+            st.session_state["page_comp"] = PAGE_SIZE
         n = st.session_state["page_comp"]
         for _ci, (_, row) in enumerate(df_f.iloc[:n].iterrows()):
             title   = str(row.get("Title",   "")).strip() or "Untitled"
@@ -666,20 +678,23 @@ with tab_comp:
             if source:  tags += f'<span class="tag">{source}</span>'
             st.markdown(f"""
             <div class="intel-card intel-card-na">
-              <div class="card-title">{title_html}</div>
-              <div class="card-date">{dt or "—"}</div>
+              <div class="card-header">
+                <div class="card-title">{title_html}</div>
+                <span class="card-date">{dt or "—"}</span>
+              </div>
               <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
               <div class="card-tags">{tags}</div>
             </div>""", unsafe_allow_html=True)
             if notes:
-                with st.expander("Details", key=f"comp_exp_{_ci}"): st.markdown(notes)
+                with st.expander("Details"):
+                    st.markdown(notes)
         if n < len(df_f):
             remaining = len(df_f) - n
             if st.button(f"Load more  ({remaining} remaining)", key="btn_page_comp"):
                 st.session_state["page_comp"] += PAGE_SIZE
                 st.rerun()
 
-# SEARCH
+# ── SEARCH ────────────────────────────────────────────────────────────────────
 with tab_search:
     st.markdown('<div class="section-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
     q = st.text_input("", placeholder="Search across all data…", key="search_main", label_visibility="collapsed")
@@ -699,27 +714,23 @@ with tab_search:
             st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors ({len(r_c)})</div>', unsafe_allow_html=True)
             paginated(r_c, "page_scomp", "rc")
         if total == 0:
-            st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No results found.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="empty-state">No results found.</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div style="color:#bbb;text-align:center;padding:48px;font-size:0.85rem;">Type above to search across all intelligence.</div>', unsafe_allow_html=True)
 
-# FAVORITES
+# ── FAVORITES ─────────────────────────────────────────────────────────────────
 with tab_fav:
     st.markdown('<div class="section-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
 
-    # Init session state
     if "removed_favs"  not in st.session_state: st.session_state["removed_favs"]  = set()
     if "saved_favs"    not in st.session_state: st.session_state["saved_favs"]    = set()
     if "pending_favs"  not in st.session_state: st.session_state["pending_favs"]  = []
 
-    # Load from Sheets (cached)
     df_fav = load_tab("Favorites")
 
-    # Remove deleted items (sheet may lag behind)
     if not df_fav.empty and "Title" in df_fav.columns:
         df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
 
-    # Add newly saved items that aren't in cache yet
     if st.session_state["pending_favs"]:
         existing_titles = set(df_fav["Title"].tolist()) if not df_fav.empty else set()
         new_rows = [p for p in st.session_state["pending_favs"] if p["Title"] not in existing_titles]
@@ -756,11 +767,9 @@ with tab_fav:
             </div>""", unsafe_allow_html=True)
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
-                # Remove from screen instantly
                 st.session_state["removed_favs"].add(title)
                 st.session_state["saved_favs"].discard(title)
                 st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
-                # Delete row from Sheets in background (real delete)
                 def _delete(t, sheet_name, secrets):
                     try:
                         creds = Credentials.from_service_account_info(secrets, scopes=[
@@ -781,15 +790,15 @@ with tab_fav:
                     args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
                     daemon=True
                 ).start()
-                st.rerun()  # session_state["removed_favs"] already hides it instantly
+                st.rerun()
 
-# ARCHIVE
+# ── ARCHIVE ───────────────────────────────────────────────────────────────────
 with tab_arc:
     st.markdown('<div class="section-hdr">Archive</div>', unsafe_allow_html=True)
     arc_count = len(df_archive) if not df_archive.empty else 0
     st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
     if df_archive.empty:
-        st.markdown('<div class="intel-card" class="empty-state">Archive is empty.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">Archive is empty.</div>', unsafe_allow_html=True)
     else:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search_input", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
