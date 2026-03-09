@@ -71,7 +71,6 @@ st.markdown("""
     color: var(--text-muted) !important;
   }
 
-  /* SIDEBAR LOGO */
   .rip-logo {
     font-family: 'Instrument Serif', serif;
     font-size: 1.15rem;
@@ -116,34 +115,6 @@ st.markdown("""
     box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
   }
 
-  /* METRICS */
-  .metrics {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 10px;
-    margin-bottom: 32px;
-  }
-  .metric {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 16px 18px;
-  }
-  .metric-num {
-    font-family: 'Instrument Serif', serif;
-    font-size: 2rem;
-    line-height: 1;
-    color: var(--text-primary);
-    margin-bottom: 4px;
-  }
-  .metric-num.alert { color: var(--high); }
-  .metric-label {
-    font-size: 11px;
-    color: var(--text-muted);
-    font-weight: 500;
-    letter-spacing: 0.04em;
-  }
-
   /* SECTION HEADER */
   .section-hdr {
     font-family: 'Instrument Serif', serif;
@@ -152,9 +123,6 @@ st.markdown("""
     letter-spacing: -0.01em;
     margin-bottom: 14px;
     margin-top: 32px;
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
   }
   .section-hdr:first-child { margin-top: 0; }
   .item-count {
@@ -163,6 +131,18 @@ st.markdown("""
     color: var(--text-muted);
     margin-bottom: 14px;
   }
+
+  /* SCROLLABLE FEED CONTAINER — used in all tabs */
+  .feed-scroll {
+    max-height: 75vh;
+    overflow-y: auto;
+    padding-right: 6px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .feed-scroll::-webkit-scrollbar { width: 4px; }
+  .feed-scroll::-webkit-scrollbar-track { background: transparent; }
+  .feed-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
   /* CARDS */
   .intel-card {
@@ -187,13 +167,13 @@ st.markdown("""
   .intel-card-low::before    { background: #16a34a; }
   .intel-card-na::before     { background: var(--border); }
 
-  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-  .card-title  { font-size: 13.5px; font-weight: 500; color: var(--text-primary); line-height: 1.45; text-decoration: none; }
+  .card-header  { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .card-title   { font-size: 13.5px; font-weight: 500; color: var(--text-primary); line-height: 1.45; }
   .card-title a { color: var(--text-primary); text-decoration: none; }
   .card-title a:hover { color: #2563eb; }
-  .card-date   { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
+  .card-date    { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
   .card-summary { font-size: 12.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 12px; }
-  .card-tags   { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+  .card-tags    { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
   /* TAGS & BADGES */
   .tag {
@@ -206,26 +186,10 @@ st.markdown("""
     letter-spacing: 0.02em;
   }
   .tag-gold { background: var(--gold-bg); color: var(--gold); border-color: var(--gold-border); }
+
   .badge-high   { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
   .badge-medium { background: var(--med-bg);  color: var(--med);  border: 1px solid var(--med-border);  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
   .badge-low    { background: var(--low-bg);  color: var(--low);  border: 1px solid var(--low-border);  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
-  .badge-na     { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
-
-  /* SAVE BUTTON — inline below card, small and subtle */
-  div[data-testid="stButton"] > button[kind="secondary"] {
-    background: transparent !important;
-    border: none !important;
-    color: var(--text-muted) !important;
-    font-size: 11px !important;
-    padding: 0 4px !important;
-    margin-top: -2px !important;
-    margin-bottom: 10px !important;
-    box-shadow: none !important;
-  }
-  div[data-testid="stButton"] > button[kind="secondary"]:hover {
-    color: var(--text-primary) !important;
-    background: transparent !important;
-  }
 
   /* TABS */
   .stTabs [data-baseweb="tab-list"] {
@@ -319,7 +283,7 @@ st.markdown("""
     gap: 16px;
     align-items: start;
   }
-  .home-col {}
+  .home-col { display: flex; flex-direction: column; }
   .home-col-hdr {
     font-family: 'Instrument Serif', serif;
     font-size: 1rem;
@@ -328,14 +292,23 @@ st.markdown("""
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
   }
+  .home-col-scroll {
+    max-height: 600px;
+    overflow-y: auto;
+    padding-right: 4px;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  .home-col-scroll::-webkit-scrollbar { width: 4px; }
+  .home-col-scroll::-webkit-scrollbar-track { background: transparent; }
+  .home-col-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 
-  /* MOBILE RESPONSIVE */
+  /* MOBILE */
   @media (max-width: 768px) {
     .home-grid { grid-template-columns: 1fr; }
     .block-container { padding: 1rem !important; }
-    .topbar { padding: 0 0 16px 0; }
-    .content { padding: 16px; }
     .stTabs [data-baseweb="tab"] { padding: 8px 10px !important; font-size: 12px !important; }
   }
   @media (max-width: 480px) {
@@ -375,50 +348,13 @@ def load_tab(tab_name):
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
 
-def save_favorite(row):
-    try:
-        gc = get_client()
-        ss = gc.open(SHEET_NAME)
-        try:
-            ws = ss.worksheet("Favorites")
-        except Exception:
-            try:
-                ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
-                ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At","Deleted"])
-            except Exception as e2:
-                st.error(f"Cannot create Favorites tab: {e2}")
-                return False
-        try:
-            ws.append_row([
-                str(row.get("Title","")),
-                str(row.get("URL","")),
-                str(row.get("Source","")),
-                str(row.get("Published Date", row.get("Date",""))),
-                str(row.get("Priority","")),
-                str(row.get("Therapeutic Area","")),
-                str(row.get("AI Summary", row.get("Summary",""))),
-                datetime.now().strftime("%Y-%m-%d %H:%M"),
-                "",
-            ])
-        except Exception as e3:
-            st.error(f"Cannot write to Favorites: {e3}")
-            return False
-        return True
-    except Exception as e:
-        st.error(f"Save error: {e}")
-        return False
-
 # ── HELPERS ───────────────────────────────────────────────────────────────────
-def high_count(df):
-    if df.empty or "Priority" not in df.columns: return 0
-    return int((df["Priority"].fillna("").str.strip().str.lower() == "high").sum())
-
 def priority_badge(p):
     p = str(p).strip().lower()
     if p == "high":   return '<span class="badge-high">HIGH</span>'
     if p == "medium": return '<span class="badge-medium">MED</span>'
     if p == "low":    return '<span class="badge-low">LOW</span>'
-    return '<span class="badge-na">—</span>'
+    return ''
 
 def card_border(p):
     p = str(p).strip().lower()
@@ -427,24 +363,41 @@ def card_border(p):
     if p == "low":    return "intel-card intel-card-low"
     return "intel-card intel-card-na"
 
+def build_tags(row, show_source=True):
+    """Returns tag HTML: priority badge + therapeutic area (gold) + HA + source."""
+    ta     = str(row.get("Therapeutic Area", "")).strip()
+    ha     = str(row.get("Health Authority", row.get("Source", ""))).strip()
+    source = str(row.get("Source", "")).strip()
+    pri    = str(row.get("Priority", "")).strip()
+
+    tags = priority_badge(pri)
+    if ta and ta not in ("-", ""):
+        tags += f' <span class="tag tag-gold">{ta}</span>'
+    if ha and ha not in ("-", "") and ha != source:
+        tags += f' <span class="tag">{ha}</span>'
+    if show_source and source and source not in ("-", ""):
+        tags += f' <span class="tag">{source}</span>'
+    return tags
+
 def render_card(row, show_source=True, idx=None):
+    """Render card HTML then Save button directly below — no st.columns wrapper."""
     title   = str(row.get("Title",   "")).strip() or "Untitled"
     url     = str(row.get("URL",     "")).strip()
     summary = str(row.get("AI Summary", row.get("Summary", ""))).strip()
-    pri     = str(row.get("Priority","")).strip()
-    ta      = str(row.get("Therapeutic Area","")).strip()
-    ha      = str(row.get("Health Authority", row.get("Source",""))).strip()
-    pub     = str(row.get("Published Date", row.get("Date",""))).strip()[:16]
-    source  = str(row.get("Source","")).strip()
-    impl    = str(row.get("Implications","")).strip()
-    actions = str(row.get("Action Items","")).strip()
+    pri     = str(row.get("Priority", "")).strip()
+    pub     = str(row.get("Published Date", row.get("Date", ""))).strip()[:16]
+    source  = str(row.get("Source", "")).strip()
+    ta      = str(row.get("Therapeutic Area", "")).strip()
+    impl    = str(row.get("Implications", "")).strip()
+    actions = str(row.get("Action Items", "")).strip()
 
-    title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
-    tags = ""
-    if ta and ta not in ("-",""):  tags += f'<span class="tag tag-gold">{ta}</span>'
-    if ha and ha not in ("-",""):  tags += f'<span class="tag">{ha}</span>'
-    if show_source and source:     tags += f'<span class="tag">{source}</span>'
+    title_html = (
+        f'<a href="{url}" target="_blank" class="card-title">{title}</a>'
+        if url else f'<span class="card-title">{title}</span>'
+    )
+    tags = build_tags(row, show_source=show_source)
 
+    # Card HTML
     st.markdown(f"""
     <div class="{card_border(pri)}">
       <div class="card-header">
@@ -452,35 +405,29 @@ def render_card(row, show_source=True, idx=None):
         <span class="card-date">{pub or "—"}</span>
       </div>
       <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
-      <div class="card-tags">{priority_badge(pri)}{tags}</div>
+      <div class="card-tags">{tags}</div>
     </div>""", unsafe_allow_html=True)
 
+    # Optional analysis expander
     if impl or actions:
         with st.expander("Analysis details"):
             if impl:    st.markdown(f"**Implications:** {impl}")
             if actions: st.markdown(f"**Action Items:** {actions}")
 
+    # Save button — sits directly below, no columns
     already_saved = title in st.session_state.get("saved_favs", set())
     btn_label = "⭐ Saved" if already_saved else "☆ Save"
     if st.button(btn_label, key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites", disabled=already_saved):
-        if "saved_favs" not in st.session_state:
-            st.session_state["saved_favs"] = set()
-        if "pending_favs" not in st.session_state:
-            st.session_state["pending_favs"] = []
+        if "saved_favs"   not in st.session_state: st.session_state["saved_favs"]   = set()
+        if "pending_favs" not in st.session_state: st.session_state["pending_favs"] = []
         from datetime import timezone, timedelta
-        BR_TZ = timezone(timedelta(hours=-3))
-        saved_at = datetime.now(BR_TZ).strftime("%Y-%m-%d %H:%M")
+        saved_at = datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M")
         st.session_state["saved_favs"].add(title)
         st.session_state["pending_favs"].append({
-            "Title": title,
-            "URL": url,
-            "Source": source,
-            "Published Date": pub,
-            "Priority": pri,
-            "Therapeutic Area": ta,
-            "AI Summary": summary,
-            "Saved At": saved_at,
-            "Deleted": "",
+            "Title": title, "URL": url, "Source": source,
+            "Published Date": pub, "Priority": pri,
+            "Therapeutic Area": ta, "AI Summary": summary,
+            "Saved At": saved_at, "Deleted": "",
         })
         def _write(t, u, s, p, pr, ta_, sm, dt, sheet_name, secrets):
             try:
@@ -497,7 +444,7 @@ def render_card(row, show_source=True, idx=None):
             target=_write,
             args=(title, url, source, pub, pri, ta, summary,
                   saved_at, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
-            daemon=True
+            daemon=True,
         ).start()
         st.rerun()
 
@@ -528,14 +475,19 @@ with st.sidebar:
     st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
     selected_priority = st.multiselect("Priority",         ["High","Medium","Low"], default=[])
     selected_ha       = st.multiselect("Health Authority", ["FDA","EMA","ICH"],     default=[])
-    selected_ta       = st.multiselect("Therapeutic Area", ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"], default=[])
+    selected_ta       = st.multiselect("Therapeutic Area",
+        ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"], default=[])
     st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
     if st.button("↺  Refresh data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
     from datetime import timezone, timedelta as _td
     _br = datetime.now(timezone(_td(hours=-3))).strftime("%H:%M")
-    st.markdown(f'<div style="font-family:Geist Mono,monospace;font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">updated {_br}</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="font-family:Geist Mono,monospace;font-size:10px;color:var(--text-muted);'
+        f'text-align:center;margin-top:8px;">updated {_br}</div>',
+        unsafe_allow_html=True,
+    )
 
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown(f"""
@@ -555,22 +507,6 @@ with st.spinner(""):
     df_competitors = load_tab("Competitors")
     df_archive     = load_tab("Archive")
 
-# ── PAGINATION HELPER ─────────────────────────────────────────────────────────
-PAGE_SIZE = 10
-
-def paginated(df, key, prefix):
-    if key not in st.session_state:
-        st.session_state[key] = PAGE_SIZE
-    n = st.session_state[key]
-    subset = df.iloc[:n]
-    for _i, (_idx, row) in enumerate(subset.iterrows()):
-        render_card(row, idx=f"{prefix}{_i}")
-    if n < len(df):
-        remaining = len(df) - n
-        if st.button(f"Load more  ({remaining} remaining)", key=f"btn_{key}"):
-            st.session_state[key] += PAGE_SIZE
-            st.rerun()
-
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs([
     "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
@@ -578,45 +514,67 @@ tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs(
 
 # ── HOME ──────────────────────────────────────────────────────────────────────
 with tab_home:
-    high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
-    high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
-    high_all = pd.concat([high_u, high_n]).head(5)
 
     def home_card_html(row):
-        title   = str(row.get("Title","")).strip() or "Untitled"
-        url     = str(row.get("URL","")).strip()
-        summary = str(row.get("AI Summary", row.get("Summary",""))).strip()
-        pri     = str(row.get("Priority","")).strip()
-        pub     = str(row.get("Published Date", row.get("Date",""))).strip()[:16]
-        ta      = str(row.get("Therapeutic Area","")).strip()
-        title_html = f'<a href="{url}" target="_blank" style="color:var(--text-primary);text-decoration:none;font-weight:500;">{title}</a>' if url else f'<span style="font-weight:500;">{title}</span>'
+        title   = str(row.get("Title", "")).strip() or "Untitled"
+        url     = str(row.get("URL", "")).strip()
+        summary = str(row.get("AI Summary", row.get("Summary", ""))).strip()
+        pri     = str(row.get("Priority", "")).strip()
+        pub     = str(row.get("Published Date", row.get("Date", ""))).strip()[:16]
+        ta      = str(row.get("Therapeutic Area", "")).strip()
+        ha      = str(row.get("Health Authority", row.get("Source", ""))).strip()
+        source  = str(row.get("Source", "")).strip()
+
+        title_html = (
+            f'<a href="{url}" target="_blank" style="color:var(--text-primary);text-decoration:none;font-weight:500;">{title}</a>'
+            if url else f'<span style="font-weight:500;">{title}</span>'
+        )
         tags = priority_badge(pri)
-        if ta and ta not in ("-",""): tags += f' <span class="tag tag-gold">{ta}</span>'
+        if ta and ta not in ("-", ""):
+            tags += f' <span class="tag tag-gold">{ta}</span>'
+        if ha and ha not in ("-", "") and ha != source:
+            tags += f' <span class="tag">{ha}</span>'
+        if source and source not in ("-", ""):
+            tags += f' <span class="tag">{source}</span>'
+
         return f"""<div class="{card_border(pri)}" style="margin-bottom:6px;">
-          <div class="card-header"><div class="card-title">{title_html}</div><span class="card-date">{pub or "—"}</span></div>
+          <div class="card-header">
+            <div class="card-title">{title_html}</div>
+            <span class="card-date">{pub or "—"}</span>
+          </div>
           <div class="card-summary" style="font-size:12px;">{summary[:200] if summary else "No summary."}</div>
           <div class="card-tags">{tags}</div>
         </div>"""
 
-    empty_col = '<div class="empty-state" style="padding:24px;font-size:12px;">No items.</div>'
+    high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] \
+               if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
+    high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"] \
+               if not df_news.empty and "Priority" in df_news.columns else pd.DataFrame()
+    high_all = pd.concat([high_u, high_n]) if not high_u.empty or not high_n.empty else pd.DataFrame()
 
-    col_high = "".join(home_card_html(r) for _, r in high_all.iterrows()) if not high_all.empty else '<div class="empty-state" style="padding:24px;font-size:12px;">No high priority items.</div>'
-    col_reg  = "".join(home_card_html(r) for _, r in df_updates.head(5).iterrows()) if not df_updates.empty else empty_col
-    col_news = "".join(home_card_html(r) for _, r in df_news.head(5).iterrows()) if not df_news.empty else empty_col
+    empty_html = '<div class="empty-state" style="padding:24px;font-size:12px;">No items.</div>'
+
+    col_high = (
+        "".join(home_card_html(r) for _, r in high_all.iterrows())
+        if not high_all.empty
+        else '<div class="empty-state" style="padding:24px;font-size:12px;">No high priority items.</div>'
+    )
+    col_reg  = "".join(home_card_html(r) for _, r in df_updates.iterrows()) if not df_updates.empty else empty_html
+    col_news = "".join(home_card_html(r) for _, r in df_news.iterrows())    if not df_news.empty    else empty_html
 
     st.markdown(f"""
     <div class="home-grid">
       <div class="home-col">
         <div class="home-col-hdr">🚨 High Priority</div>
-        {col_high}
+        <div class="home-col-scroll">{col_high}</div>
       </div>
       <div class="home-col">
         <div class="home-col-hdr">Regulatory Updates</div>
-        {col_reg}
+        <div class="home-col-scroll">{col_reg}</div>
       </div>
       <div class="home-col">
         <div class="home-col-hdr">Latest News</div>
-        {col_news}
+        <div class="home-col-scroll">{col_news}</div>
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -629,7 +587,11 @@ with tab_reg:
     if df_f.empty:
         st.markdown('<div class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
     else:
-        paginated(df_f, "page_reg", "reg")
+        # Scrollable container wrapping all cards + load-more
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
+        for _i, (_idx, row) in enumerate(df_f.iterrows()):
+            render_card(row, idx=f"reg{_i}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── NEWS ──────────────────────────────────────────────────────────────────────
 with tab_news_t:
@@ -646,7 +608,10 @@ with tab_news_t:
                 for _i, (_idx, row) in enumerate(src_df.iterrows()):
                     render_card(row, show_source=False, idx=f"src{_i}")
     else:
-        paginated(df_f, "page_news", "news")
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
+        for _i, (_idx, row) in enumerate(df_f.iterrows()):
+            render_card(row, idx=f"news{_i}")
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── COMPETITORS ───────────────────────────────────────────────────────────────
 with tab_comp:
@@ -659,19 +624,20 @@ with tab_comp:
     if df_f.empty:
         st.markdown('<div class="empty-state">No competitor intelligence available.</div>', unsafe_allow_html=True)
     else:
-        if "page_comp" not in st.session_state:
-            st.session_state["page_comp"] = PAGE_SIZE
-        n = st.session_state["page_comp"]
-        for _ci, (_, row) in enumerate(df_f.iloc[:n].iterrows()):
-            title   = str(row.get("Title",   "")).strip() or "Untitled"
-            url     = str(row.get("URL",     "")).strip()
-            summary = str(row.get("Summary", "")).strip()
-            company = str(row.get("Company", "")).strip()
-            cat     = str(row.get("Category","")).strip()
-            source  = str(row.get("Source",  "")).strip()
-            dt      = str(row.get("Date", row.get("Run Date",""))).strip()[:16]
-            notes   = str(row.get("Notes",   "")).strip()
-            title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
+        for _ci, (_, row) in enumerate(df_f.iterrows()):
+            title   = str(row.get("Title",    "")).strip() or "Untitled"
+            url     = str(row.get("URL",      "")).strip()
+            summary = str(row.get("Summary",  "")).strip()
+            company = str(row.get("Company",  "")).strip()
+            cat     = str(row.get("Category", "")).strip()
+            source  = str(row.get("Source",   "")).strip()
+            dt      = str(row.get("Date", row.get("Run Date", ""))).strip()[:16]
+            notes   = str(row.get("Notes",    "")).strip()
+            title_html = (
+                f'<a href="{url}" target="_blank" class="card-title">{title}</a>'
+                if url else f'<span class="card-title">{title}</span>'
+            )
             tags = ""
             if company: tags += f'<span class="tag tag-gold">{company}</span>'
             if cat:     tags += f'<span class="tag">{cat}</span>'
@@ -688,11 +654,7 @@ with tab_comp:
             if notes:
                 with st.expander("Details"):
                     st.markdown(notes)
-        if n < len(df_f):
-            remaining = len(df_f) - n
-            if st.button(f"Load more  ({remaining} remaining)", key="btn_page_comp"):
-                st.session_state["page_comp"] += PAGE_SIZE
-                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── SEARCH ────────────────────────────────────────────────────────────────────
 with tab_search:
@@ -704,15 +666,17 @@ with tab_search:
         r_c = filter_df(df_competitors, q)
         total = len(r_u) + len(r_n) + len(r_c)
         st.markdown(f'<div class="item-count">{total} results for <strong style="color:#1a1a1a">{q}</strong></div>', unsafe_allow_html=True)
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
         if not r_u.empty:
-            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Regulatory ({len(r_u)})</div>', unsafe_allow_html=True)
-            paginated(r_u, "page_sreg", "ru")
+            st.markdown('<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Regulatory</div>', unsafe_allow_html=True)
+            for _i, (_idx, row) in enumerate(r_u.iterrows()): render_card(row, idx=f"ru{_i}")
         if not r_n.empty:
-            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">News ({len(r_n)})</div>', unsafe_allow_html=True)
-            paginated(r_n, "page_snews", "rn")
+            st.markdown('<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">News</div>', unsafe_allow_html=True)
+            for _i, (_idx, row) in enumerate(r_n.iterrows()): render_card(row, idx=f"rn{_i}")
         if not r_c.empty:
-            st.markdown(f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors ({len(r_c)})</div>', unsafe_allow_html=True)
-            paginated(r_c, "page_scomp", "rc")
+            st.markdown('<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#aaa;margin:20px 0 10px 0;">Competitors</div>', unsafe_allow_html=True)
+            for _i, (_idx, row) in enumerate(r_c.iterrows()): render_card(row, idx=f"rc{_i}")
+        st.markdown('</div>', unsafe_allow_html=True)
         if total == 0:
             st.markdown('<div class="empty-state">No results found.</div>', unsafe_allow_html=True)
     else:
@@ -742,19 +706,23 @@ with tab_fav:
         st.markdown('<div class="empty-state">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
-            title   = str(row.get("Title","")).strip() or "Untitled"
-            url     = str(row.get("URL","")).strip()
-            summary = str(row.get("AI Summary", row.get("Summary",""))).strip()
-            pri     = str(row.get("Priority","")).strip()
-            ta      = str(row.get("Therapeutic Area","")).strip()
-            pub     = str(row.get("Published Date", row.get("Saved At",""))).strip()[:16]
-            source  = str(row.get("Source","")).strip()
+            title   = str(row.get("Title",   "")).strip() or "Untitled"
+            url     = str(row.get("URL",     "")).strip()
+            summary = str(row.get("AI Summary", row.get("Summary", ""))).strip()
+            pri     = str(row.get("Priority", "")).strip()
+            ta      = str(row.get("Therapeutic Area", "")).strip()
+            pub     = str(row.get("Published Date", row.get("Saved At", ""))).strip()[:16]
+            source  = str(row.get("Source", "")).strip()
 
-            title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
-            tags = ""
-            if ta and ta not in ("-",""): tags += f'<span class="tag tag-gold">{ta}</span>'
-            if source:                    tags += f'<span class="tag">{source}</span>'
+            title_html = (
+                f'<a href="{url}" target="_blank" class="card-title">{title}</a>'
+                if url else f'<span class="card-title">{title}</span>'
+            )
+            tags = priority_badge(pri)
+            if ta and ta not in ("-", ""): tags += f' <span class="tag tag-gold">{ta}</span>'
+            if source:                     tags += f' <span class="tag">{source}</span>'
 
             st.markdown(f"""
             <div class="{card_border(pri)}">
@@ -763,13 +731,15 @@ with tab_fav:
                 <span class="card-date">{pub or "—"}</span>
               </div>
               <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
-              <div class="card-tags">{priority_badge(pri)}{tags}</div>
+              <div class="card-tags">{tags}</div>
             </div>""", unsafe_allow_html=True)
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
                 st.session_state["removed_favs"].add(title)
                 st.session_state["saved_favs"].discard(title)
-                st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
+                st.session_state["pending_favs"] = [
+                    p for p in st.session_state["pending_favs"] if p.get("Title") != title
+                ]
                 def _delete(t, sheet_name, secrets):
                     try:
                         creds = Credentials.from_service_account_info(secrets, scopes=[
@@ -788,19 +758,26 @@ with tab_fav:
                 threading.Thread(
                     target=_delete,
                     args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])),
-                    daemon=True
+                    daemon=True,
                 ).start()
                 st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # ── ARCHIVE ───────────────────────────────────────────────────────────────────
 with tab_arc:
     st.markdown('<div class="section-hdr">Archive</div>', unsafe_allow_html=True)
     arc_count = len(df_archive) if not df_archive.empty else 0
-    st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>',
+        unsafe_allow_html=True,
+    )
     if df_archive.empty:
         st.markdown('<div class="empty-state">Archive is empty.</div>', unsafe_allow_html=True)
     else:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search_input", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
         st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
-        paginated(df_arc_f, "page_arc", "arc")
+        st.markdown('<div class="feed-scroll">', unsafe_allow_html=True)
+        for _i, (_idx, row) in enumerate(df_arc_f.iterrows()):
+            render_card(row, idx=f"arc{_i}")
+        st.markdown('</div>', unsafe_allow_html=True)
