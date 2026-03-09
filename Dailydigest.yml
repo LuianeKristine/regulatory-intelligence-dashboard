@@ -1,0 +1,32 @@
+name: Daily RI Email Digest
+
+on:
+  schedule:
+    # 08:00 BRT = 11:00 UTC
+    - cron: '0 11 * * *'
+  workflow_dispatch:  # permite rodar manualmente pelo GitHub
+
+jobs:
+  send-digest:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install gspread google-auth pandas sendgrid
+
+      - name: Run digest
+        env:
+          SENDGRID_API_KEY:          ${{ secrets.SENDGRID_API_KEY }}
+          FROM_EMAIL:                ${{ secrets.FROM_EMAIL }}
+          TO_EMAIL:                  ${{ secrets.TO_EMAIL }}
+          GCP_SERVICE_ACCOUNT_JSON:  ${{ secrets.GCP_SERVICE_ACCOUNT_JSON }}
+        run: python email_digest.py
