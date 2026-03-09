@@ -132,23 +132,31 @@ def save_favorite(row):
         ss = gc.open(SHEET_NAME)
         try:
             ws = ss.worksheet("Favorites")
-        except:
-            ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
-            ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At","Deleted"])
-        ws.append_row([
-            str(row.get("Title","")),
-            str(row.get("URL","")),
-            str(row.get("Source","")),
-            str(row.get("Published Date", row.get("Date",""))),
-            str(row.get("Priority","")),
-            str(row.get("Therapeutic Area","")),
-            str(row.get("AI Summary", row.get("Summary",""))),
-            datetime.now().strftime("%Y-%m-%d %H:%M"),
-            "",
-        ])
+        except Exception as e1:
+            try:
+                ws = ss.add_worksheet("Favorites", rows=1000, cols=20)
+                ws.append_row(["Title","URL","Source","Published Date","Priority","Therapeutic Area","AI Summary","Saved At","Deleted"])
+            except Exception as e2:
+                st.error(f"Cannot create Favorites tab: {e2}")
+                return False
+        try:
+            ws.append_row([
+                str(row.get("Title","")),
+                str(row.get("URL","")),
+                str(row.get("Source","")),
+                str(row.get("Published Date", row.get("Date",""))),
+                str(row.get("Priority","")),
+                str(row.get("Therapeutic Area","")),
+                str(row.get("AI Summary", row.get("Summary",""))),
+                datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "",
+            ])
+        except Exception as e3:
+            st.error(f"Cannot write to Favorites: {e3}")
+            return False
         return True
     except Exception as e:
-        st.error(f"Could not save favorite: {e}")
+        st.error(f"Save error: {e}")
         return False
 
 # ── HELPERS ───────────────────────────────────────────────────────────────────
@@ -204,8 +212,11 @@ def render_card(row, show_source=True, idx=None):
     col1, col2 = st.columns([6,1])
     with col2:
         if st.button("⭐ Save", key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites"):
-            if save_favorite(row):
+            result = save_favorite(row)
+            if result:
                 st.success("Saved!", icon="⭐")
+            else:
+                st.error("Failed to save — check logs")
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
