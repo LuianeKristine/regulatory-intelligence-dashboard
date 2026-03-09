@@ -211,12 +211,35 @@ def render_card(row, show_source=True, idx=None):
 
     col1, col2 = st.columns([6,1])
     with col2:
-        if st.button("⭐ Save", key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites"):
-            result = save_favorite(row)
-            if result:
-                st.success("Saved!", icon="⭐")
-            else:
-                st.error("Failed to save — check logs")
+        already_saved = title in st.session_state.get("saved_favs", set())
+        btn_label = "⭐ Saved" if already_saved else "☆ Save"
+        if st.button(btn_label, key=f"fav_{idx}_{hash(title+pub)}", help="Save to Favorites", disabled=already_saved):
+            # 1. Show instantly
+            if "saved_favs" not in st.session_state:
+                st.session_state["saved_favs"] = set()
+            if "pending_favs" not in st.session_state:
+                st.session_state["pending_favs"] = []
+            st.session_state["saved_favs"].add(title)
+            st.session_state["pending_favs"].append({
+                "Title": title,
+                "URL": url,
+                "Source": source,
+                "Published Date": pub,
+                "Priority": pri,
+                "Therapeutic Area": ta,
+                "AI Summary": summary,
+                "Saved At": datetime.now().strftime("%Y-%m-%d %H:%M"),
+                "Deleted": "",
+            })
+            # 2. Write to Sheets in background
+            try:
+                gc = get_client()
+                ws = gc.open(SHEET_NAME).worksheet("Favorites")
+                ws.append_row([title, url, source, pub, pri, ta, summary,
+                               datetime.now().strftime("%Y-%m-%d %H:%M"), ""])
+            except Exception:
+                pass
+            st.rerun()
 
 def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
     if df.empty: return df
@@ -421,18 +444,28 @@ with tab_search:
 with tab_fav:
     st.markdown('<div class="section-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
 
-    # Initialize removed set in session state
     if "removed_favs" not in st.session_state:
         st.session_state["removed_favs"] = set()
+    if "saved_favs" not in st.session_state:
+        st.session_state["saved_favs"] = set()
+    if "pending_favs" not in st.session_state:
+        st.session_state["pending_favs"] = []
 
+    # Load from Sheets
     df_fav = load_tab("Favorites")
 
-    # Apply session-state removals instantly (before API catches up)
+    # Merge pending (saved this session, not yet in cache)
+    if st.session_state["pending_favs"]:
+        df_pending = pd.DataFrame(st.session_state["pending_favs"])
+        df_fav = pd.concat([df_fav, df_pending], ignore_index=True)
+
+    # Filter removed
     if not df_fav.empty and "Title" in df_fav.columns:
         df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
+        df_fav = df_fav.drop_duplicates(subset=["Title"])
 
     if df_fav.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ⭐ Save on any item to save it here.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
@@ -458,9 +491,12 @@ with tab_fav:
             </div>""", unsafe_allow_html=True)
 
             if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
-                # 1. Remove from screen instantly
                 st.session_state["removed_favs"].add(title)
-                # 2. Mark as deleted in Sheets (async — user doesn't wait)
+                # Remove from pending too
+                st.session_state["pending_favs"] = [
+                    p for p in st.session_state["pending_favs"] if p.get("Title") != title
+                ]
+                st.session_state["saved_favs"].discard(title)
                 try:
                     gc = get_client()
                     ws = gc.open("Raw Intelligence").worksheet("Favorites")
@@ -470,7 +506,7 @@ with tab_fav:
                             ws.update_cell(row_num, 9, "deleted")
                             break
                 except Exception:
-                    pass  # Will retry on next cache refresh
+                    pass
                 st.rerun()
 
 # ARCHIVE
