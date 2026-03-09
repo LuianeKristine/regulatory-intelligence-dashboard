@@ -53,10 +53,33 @@ section[data-testid="stSidebar"] {
   background: var(--surface) !important;
   border-right: 1px solid var(--border) !important;
 }
+section[data-testid="stSidebar"],
+section[data-testid="stSidebar"] * {
+  font-family: 'Inter', sans-serif !important;
+  color: var(--text-1) !important;
+}
 section[data-testid="stSidebar"] label {
   font-size: 10px !important; font-weight: 600 !important;
   text-transform: uppercase !important; letter-spacing: .1em !important;
   color: var(--text-3) !important;
+}
+section[data-testid="stSidebar"] .stTextInput input {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  background: var(--surface-2) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--r) !important;
+  color: var(--text-1) !important;
+}
+section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  background: var(--surface-2) !important;
+  border-color: var(--border) !important;
+  border-radius: var(--r) !important;
+}
+section[data-testid="stSidebar"] .stButton > button {
+  font-family: 'Inter', sans-serif !important;
 }
 
 .topbar { display:flex; align-items:center; justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:22px; }
@@ -254,8 +277,8 @@ def render_card(row, key, show_save=True):
 # ── SIDEBAR ───────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""<div style="padding:2px 0 18px;border-bottom:1px solid #eee;margin-bottom:14px;">
-      <div style="font-size:1rem;font-weight:700;letter-spacing:-.02em;">RIP</div>
-      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;">Regulatory Intelligence</div>
+      <div style="font-size:1rem;font-weight:700;letter-spacing:-.02em;font-family:'Inter',sans-serif;">RI</div>
+      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;font-family:'Inter',sans-serif;">Regulatory Intelligence</div>
     </div>""", unsafe_allow_html=True)
     search_q = st.text_input("", placeholder="Filter…", label_visibility="collapsed")
     sel_pri  = st.multiselect("Priority",         ["High","Medium","Low"])
