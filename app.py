@@ -14,84 +14,287 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400&display=swap');
+  @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500&family=Instrument+Serif:ital@0;1&family=Geist:wght@300;400;500;600&display=swap');
+
+  :root {
+    --bg: #fafaf9;
+    --surface: #ffffff;
+    --surface-2: #f5f5f4;
+    --border: #e7e5e4;
+    --border-light: #f0efee;
+    --text-primary: #1c1917;
+    --text-secondary: #78716c;
+    --text-muted: #a8a29e;
+    --gold: #92400e;
+    --gold-bg: #fef3c7;
+    --gold-border: #fde68a;
+    --high: #991b1b;
+    --high-bg: #fef2f2;
+    --high-border: #fecaca;
+    --med: #92400e;
+    --med-bg: #fffbeb;
+    --med-border: #fde68a;
+    --low: #166534;
+    --low-bg: #f0fdf4;
+    --low-border: #bbf7d0;
+    --radius: 8px;
+  }
 
   html, body, [class*="css"] {
-    font-family: 'IBM Plex Sans', sans-serif;
-    background-color: #f7f5f0;
-    color: #1a1a1a;
+    font-family: 'Geist', sans-serif !important;
+    background: var(--bg) !important;
+    color: var(--text-primary) !important;
+    -webkit-font-smoothing: antialiased;
   }
-  .main { background-color: #f7f5f0; padding-top: 0 !important; }
-  .block-container { padding-top: 0 !important; max-width: 1200px; }
+  .main { background: var(--bg) !important; }
+  .block-container { padding-top: 1.5rem !important; max-width: 860px !important; }
 
-  section[data-testid="stSidebar"] { background-color: #1a1a1a; border-right: none; }
-  section[data-testid="stSidebar"] * { color: #c8c4bc !important; }
+  /* SIDEBAR */
+  section[data-testid="stSidebar"] {
+    background: var(--surface) !important;
+    border-right: 1px solid var(--border) !important;
+  }
+  section[data-testid="stSidebar"] * { color: var(--text-secondary) !important; }
   section[data-testid="stSidebar"] .stTextInput input {
-    background: #2a2a2a !important; border: 1px solid #3a3a3a !important;
-    color: #f0ece4 !important; border-radius: 4px !important;
-    font-family: 'IBM Plex Mono', monospace !important; font-size: 12px !important;
+    background: var(--surface-2) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    font-size: 12px !important;
+    font-family: 'Geist', sans-serif !important;
+    color: var(--text-primary) !important;
   }
   section[data-testid="stSidebar"] label {
-    color: #555 !important; font-size: 10px !important; font-weight: 600 !important;
-    text-transform: uppercase !important; letter-spacing: 0.12em !important;
+    font-size: 10px !important;
+    font-weight: 600 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.1em !important;
+    color: var(--text-muted) !important;
   }
-  section[data-testid="stSidebar"] .stDivider { border-color: #2a2a2a !important; }
 
-  .rip-header {
-    background: #1a1a1a; padding: 32px 48px 28px 48px;
-    margin: 0 -4rem 0 -4rem;
-    display: flex; align-items: flex-end; justify-content: space-between;
+  /* SIDEBAR LOGO */
+  .rip-logo {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
   }
-  .rip-logo { font-family: 'Playfair Display', serif; font-size: 2.6rem; color: #f0ece4; letter-spacing: -0.03em; line-height: 1; }
-  .rip-logo span { color: #c8a96e; }
-  .rip-tagline { color: #555; font-size: 10px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.15em; margin-top: 6px; }
-  .rip-date { font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #555; text-align: right; }
-
-  .metric-strip {
-    display: grid; grid-template-columns: repeat(4, 1fr);
-    gap: 1px; background: #ddd9d2; border: 1px solid #ddd9d2;
-    margin: 24px 0; border-radius: 6px; overflow: hidden;
+  .rip-sub {
+    font-size: 10px;
+    color: var(--text-muted);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 500;
+    margin-top: 2px;
   }
-  .metric-cell { background: #fff; padding: 20px 24px; text-align: center; }
-  .metric-num { font-family: 'Playfair Display', serif; font-size: 2.8rem; line-height: 1; color: #1a1a1a; }
-  .metric-num.high { color: #c0392b; }
-  .metric-lbl { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.12em; color: #888; margin-top: 4px; }
 
-  .badge-high   { background:#fdf0ef; color:#c0392b; border:1px solid #f5c6c2; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
-  .badge-medium { background:#fdf8ef; color:#b7770d; border:1px solid #f5e2b0; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
-  .badge-low    { background:#eff7f0; color:#27724a; border:1px solid #b0dfc0; padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
-  .badge-na     { background:#f5f5f5; color:#888;    border:1px solid #ddd;    padding:2px 10px; border-radius:3px; font-size:10px; font-weight:700; font-family:'IBM Plex Mono',monospace; }
+  /* TOPBAR */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 0 20px 0;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 28px;
+  }
+  .topbar-title {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+  .topbar-date {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .live-dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #22c55e;
+    box-shadow: 0 0 0 2px rgba(34,197,94,0.2);
+  }
 
-  .intel-card { background:#fff; border:1px solid #e8e4de; border-radius:6px; padding:20px 24px; margin-bottom:10px; transition: box-shadow 0.15s, border-color 0.15s; }
-  .intel-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.07); border-color:#c8a96e; }
-  .intel-card-high   { border-left:4px solid #c0392b; }
-  .intel-card-medium { border-left:4px solid #e6a817; }
-  .intel-card-low    { border-left:4px solid #27a85a; }
-  .intel-card-na     { border-left:4px solid #ddd9d2; }
+  /* METRICS */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .metric {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .metric-num {
+    font-family: 'Instrument Serif', serif;
+    font-size: 2rem;
+    line-height: 1;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+  }
+  .metric-num.alert { color: var(--high); }
+  .metric-label {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
 
-  .card-title   { font-size:0.92rem; font-weight:600; color:#1a1a1a; margin-bottom:4px; line-height:1.45; }
-  .card-meta    { font-family:'IBM Plex Mono',monospace; font-size:10px; color:#aaa; margin-bottom:10px; }
-  .card-summary { font-size:0.82rem; color:#444; line-height:1.65; margin-bottom:12px; }
-  .card-tags    { display:flex; flex-wrap:wrap; gap:6px; align-items:center; }
-  .tag { background:#f5f5f2; color:#777; border:1px solid #e0dbd3; padding:1px 8px; border-radius:3px; font-size:10px; font-weight:500; text-transform:uppercase; letter-spacing:0.06em; font-family:'IBM Plex Mono',monospace; }
-  .tag-gold { background:#fdf5e6; color:#b7770d; border-color:#f0d89a; }
+  /* SECTION HEADER */
+  .section-hdr {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    margin-bottom: 14px;
+    margin-top: 32px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+  }
+  .section-hdr:first-child { margin-top: 0; }
+  .item-count {
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 14px;
+  }
 
-  .section-hdr { font-family:'Playfair Display',serif; font-size:1.25rem; color:#1a1a1a; border-bottom:2px solid #1a1a1a; padding-bottom:8px; margin-bottom:20px; margin-top:8px; }
-  .item-count  { font-family:'IBM Plex Mono',monospace; font-size:11px; color:#aaa; margin-bottom:16px; }
+  /* CARDS */
+  .intel-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 6px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .intel-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+  }
+  .intel-card:hover { border-color: #d4d0cc; box-shadow: 0 2px 12px rgba(0,0,0,0.05); }
+  .intel-card-high::before   { background: var(--high); }
+  .intel-card-medium::before { background: #d97706; }
+  .intel-card-low::before    { background: #16a34a; }
+  .intel-card-na::before     { background: var(--border); }
 
-  .stTabs [data-baseweb="tab-list"] { background:transparent; border-bottom:2px solid #e8e4de; gap:0; padding:0; }
-  .stTabs [data-baseweb="tab"] { color:#aaa !important; font-family:'IBM Plex Sans',sans-serif !important; font-size:0.8rem !important; font-weight:500 !important; padding:10px 20px !important; border-radius:0 !important; border-bottom:2px solid transparent !important; margin-bottom:-2px !important; }
-  .stTabs [aria-selected="true"] { color:#1a1a1a !important; border-bottom:2px solid #1a1a1a !important; background:transparent !important; }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
+  .card-title  { font-size: 13.5px; font-weight: 500; color: var(--text-primary); line-height: 1.45; text-decoration: none; }
+  .card-title a { color: var(--text-primary); text-decoration: none; }
+  .card-title a:hover { color: #2563eb; }
+  .card-date   { font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--text-muted); white-space: nowrap; flex-shrink: 0; padding-top: 2px; }
+  .card-summary { font-size: 12.5px; color: var(--text-secondary); line-height: 1.65; margin-bottom: 12px; }
+  .card-tags   { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
 
-  details { background:#fafaf8 !important; border:1px solid #e8e4de !important; border-radius:4px !important; margin-top:4px; }
-  summary { font-size:12px !important; color:#888 !important; padding:8px 12px !important; }
+  /* TAGS & BADGES */
+  .tag {
+    font-family: 'Geist Mono', monospace;
+    font-size: 10px; font-weight: 500;
+    padding: 2px 7px; border-radius: 4px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+    letter-spacing: 0.02em;
+  }
+  .tag-gold { background: var(--gold-bg); color: var(--gold); border-color: var(--gold-border); }
+  .badge-high   { background: var(--high-bg); color: var(--high); border: 1px solid var(--high-border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
+  .badge-medium { background: var(--med-bg);  color: var(--med);  border: 1px solid var(--med-border);  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
+  .badge-low    { background: var(--low-bg);  color: var(--low);  border: 1px solid var(--low-border);  padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
+  .badge-na     { background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border); padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; font-family: 'Geist Mono', monospace; }
 
-  .stTextInput input { background:#fff !important; border:1px solid #e0dbd3 !important; border-radius:4px !important; font-family:'IBM Plex Mono',monospace !important; font-size:13px !important; color:#1a1a1a !important; }
+  /* TABS */
+  .stTabs [data-baseweb="tab-list"] {
+    background: transparent !important;
+    border-bottom: 1px solid var(--border) !important;
+    gap: 0 !important; padding: 0 !important;
+  }
+  .stTabs [data-baseweb="tab"] {
+    color: var(--text-muted) !important;
+    font-family: 'Geist', sans-serif !important;
+    font-size: 13px !important;
+    font-weight: 400 !important;
+    padding: 10px 16px !important;
+    border-radius: 0 !important;
+    border-bottom: 2px solid transparent !important;
+    margin-bottom: -1px !important;
+  }
+  .stTabs [aria-selected="true"] {
+    color: var(--text-primary) !important;
+    border-bottom: 2px solid var(--text-primary) !important;
+    background: transparent !important;
+    font-weight: 500 !important;
+  }
 
-  .archive-note { background:#fafaf8; border:1px solid #e8e4de; border-radius:6px; padding:12px 16px; font-size:11px; color:#888; margin-bottom:20px; font-family:'IBM Plex Mono',monospace; }
+  /* BUTTONS */
+  .stButton button {
+    background: var(--surface) !important;
+    color: var(--text-secondary) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    font-family: 'Geist', sans-serif !important;
+    font-size: 12px !important;
+    padding: 4px 12px !important;
+    transition: all 0.1s !important;
+  }
+  .stButton button:hover {
+    background: var(--surface-2) !important;
+    color: var(--text-primary) !important;
+    border-color: var(--text-muted) !important;
+  }
 
-  .stButton button { background:#1a1a1a !important; color:#f0ece4 !important; border:none !important; border-radius:4px !important; font-family:'IBM Plex Sans',sans-serif !important; font-size:12px !important; }
-  .stButton button:hover { background:#333 !important; }
+  /* TEXT INPUT */
+  .stTextInput input {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    font-family: 'Geist', sans-serif !important;
+    font-size: 13px !important;
+    color: var(--text-primary) !important;
+    padding: 9px 14px !important;
+  }
+  .stTextInput input::placeholder { color: var(--text-muted) !important; }
+  .stTextInput input:focus { border-color: var(--text-muted) !important; }
+
+  /* EXPANDER */
+  details {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 6px !important;
+    margin-top: 4px !important;
+  }
+  summary { font-size: 11px !important; color: var(--text-muted) !important; padding: 6px 12px !important; }
+
+  /* ARCHIVE NOTE */
+  .archive-note {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-family: 'Geist Mono', monospace;
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-bottom: 20px;
+  }
+
+  /* EMPTY STATE */
+  .empty-state {
+    text-align: center;
+    padding: 48px 32px;
+    color: var(--text-muted);
+    font-size: 13px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
 
   #MainMenu, footer, header { visibility: hidden; }
   .viewerBadge_container__1QSob { display: none !important; }
@@ -191,7 +394,7 @@ def render_card(row, show_source=True, idx=None):
     impl    = str(row.get("Implications","")).strip()
     actions = str(row.get("Action Items","")).strip()
 
-    title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+    title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
     tags = ""
     if ta and ta not in ("-",""):  tags += f'<span class="tag tag-gold">{ta}</span>'
     if ha and ha not in ("-",""):  tags += f'<span class="tag">{ha}</span>'
@@ -199,8 +402,10 @@ def render_card(row, show_source=True, idx=None):
 
     st.markdown(f"""
     <div class="{card_border(pri)}">
-      <div class="card-title">{title_html}</div>
-      <div class="card-meta">{pub or "—"}</div>
+      <div class="card-header">
+        <div class="card-title">{title_html}</div>
+        <span class="card-date">{pub or "—"}</span>
+      </div>
       <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
       <div class="card-tags">{priority_badge(pri)}{tags}</div>
     </div>""", unsafe_allow_html=True)
@@ -274,32 +479,31 @@ def filter_df(df, search="", ha_filter=None, ta_filter=None, pri_filter=None):
 # ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""
-    <div style="padding:24px 0 28px 0;">
-      <div style="font-family:'Playfair Display',serif;font-size:1.3rem;color:#f0ece4;">⚕ RIP</div>
-      <div style="color:#444;font-size:9px;text-transform:uppercase;letter-spacing:0.15em;margin-top:4px;">Regulatory Intelligence</div>
+    <div style="padding:4px 0 20px 0;border-bottom:1px solid var(--border-light);margin-bottom:16px;">
+      <div class="rip-logo">RIP</div>
+      <div class="rip-sub">Regulatory Intelligence</div>
     </div>""", unsafe_allow_html=True)
 
-    search_query      = st.text_input("Search", placeholder="keyword search…")
-    st.divider()
+    search_query      = st.text_input("", placeholder="Filter…", label_visibility="collapsed")
+    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
     selected_priority = st.multiselect("Priority",         ["High","Medium","Low"], default=[])
     selected_ha       = st.multiselect("Health Authority", ["FDA","EMA","ICH"],     default=[])
     selected_ta       = st.multiselect("Therapeutic Area", ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"], default=[])
-    st.divider()
-    if st.button("↺  Refresh", use_container_width=True):
+    st.markdown('<div style="height:8px"></div>', unsafe_allow_html=True)
+    if st.button("↺  Refresh data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
-    st.markdown(f'<div style="color:#333;font-size:9px;text-align:center;margin-top:12px;font-family:IBM Plex Mono,monospace;">updated {datetime.now().strftime("%H:%M")}</div>', unsafe_allow_html=True)
+    from datetime import timezone, timedelta as _td
+    _br = datetime.now(timezone(_td(hours=-3))).strftime("%H:%M")
+    st.markdown(f'<div style="font-family:Geist Mono,monospace;font-size:10px;color:var(--text-muted);text-align:center;margin-top:8px;">updated {_br}</div>', unsafe_allow_html=True)
 
 # ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown(f"""
-<div class="rip-header">
-  <div>
-    <div class="rip-logo">Regulatory<span>.</span>Intelligence</div>
-    <div class="rip-tagline">Automated pharmaceutical surveillance platform</div>
-  </div>
-  <div class="rip-date">
-    {date.today().strftime("%A, %B %d %Y")}<br>
-    <span style="color:#c8a96e;">Live · Refreshes every 5 min</span>
+<div class="topbar">
+  <div class="topbar-title">Regulatory Intelligence Platform</div>
+  <div class="topbar-date">
+    <span class="live-dot"></span>
+    {date.today().strftime("%a, %b %d %Y")}
   </div>
 </div>
 """, unsafe_allow_html=True)
@@ -315,7 +519,6 @@ with st.spinner(""):
 PAGE_SIZE = 10
 
 def paginated(df, key, prefix):
-    """Render df with Load More button. Returns nothing — renders directly."""
     if key not in st.session_state:
         st.session_state[key] = PAGE_SIZE
     n = st.session_state[key]
@@ -330,17 +533,16 @@ def paginated(df, key, prefix):
 
 # ── METRICS ───────────────────────────────────────────────────────────────────
 high_total = high_count(df_updates) + high_count(df_news)
-high_class = "metric-num high" if high_total > 0 else "metric-num"
+high_class = "metric-num alert" if high_total > 0 else "metric-num"
 
 st.markdown(f"""
-<div class="metric-strip">
-  <div class="metric-cell"><div class="{high_class}">{high_total}</div><div class="metric-lbl">🚨 High Priority</div></div>
-  <div class="metric-cell"><div class="metric-num">{len(df_updates)}</div><div class="metric-lbl">🏛 Regulatory</div></div>
-  <div class="metric-cell"><div class="metric-num">{len(df_news)}</div><div class="metric-lbl">📰 News</div></div>
-  <div class="metric-cell"><div class="metric-num">{len(df_competitors)}</div><div class="metric-lbl">🔎 Competitors</div></div>
+<div class="metrics">
+  <div class="metric"><div class="{high_class}">{high_total}</div><div class="metric-label">High Priority</div></div>
+  <div class="metric"><div class="metric-num">{len(df_updates)}</div><div class="metric-label">Regulatory</div></div>
+  <div class="metric"><div class="metric-num">{len(df_news)}</div><div class="metric-label">News</div></div>
+  <div class="metric"><div class="metric-num">{len(df_competitors)}</div><div class="metric-label">Competitors</div></div>
 </div>
 """, unsafe_allow_html=True)
-
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs([
     "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
@@ -348,12 +550,12 @@ tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs(
 
 # HOME
 with tab_home:
-    st.markdown('<div class="section-hdr">🚨 High Priority</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-hdr">High Priority</div>', unsafe_allow_html=True)
     high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
     high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
     high_all = pd.concat([high_u, high_n]).head(10)
     if high_all.empty:
-        st.markdown('<div class="intel-card intel-card-na" style="color:#aaa;text-align:center;padding:32px;">No high priority items today.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card intel-card-na" class="empty-state">No high priority items today.</div>', unsafe_allow_html=True)
     else:
         for _i, (_idx, row) in enumerate(high_all.iterrows()): render_card(row, idx=f"hall{_i}")
 
@@ -369,7 +571,7 @@ with tab_reg:
     df_f = filter_df(df_updates, search_query, selected_ha, selected_ta, selected_priority)
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
     else:
         paginated(df_f, "page_reg", "reg")
 
@@ -380,7 +582,7 @@ with tab_news_t:
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     group = st.toggle("Group by source", value=False)
     if df_f.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No items match your filters.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" class="empty-state">No items match your filters.</div>', unsafe_allow_html=True)
     elif group and "Source" in df_f.columns:
         for src in df_f["Source"].unique():
             src_df = df_f[df_f["Source"] == src]
@@ -398,7 +600,7 @@ with tab_comp:
         df_f = df_f[mask]
     st.markdown(f'<div class="item-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No competitor intelligence available.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" class="empty-state">No competitor intelligence available.</div>', unsafe_allow_html=True)
     else:
         if "page_comp" not in st.session_state: st.session_state["page_comp"] = PAGE_SIZE
         n = st.session_state["page_comp"]
@@ -411,7 +613,7 @@ with tab_comp:
             source  = str(row.get("Source",  "")).strip()
             dt      = str(row.get("Date", row.get("Run Date",""))).strip()[:16]
             notes   = str(row.get("Notes",   "")).strip()
-            title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+            title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
             tags = ""
             if company: tags += f'<span class="tag tag-gold">{company}</span>'
             if cat:     tags += f'<span class="tag">{cat}</span>'
@@ -419,7 +621,7 @@ with tab_comp:
             st.markdown(f"""
             <div class="intel-card intel-card-na">
               <div class="card-title">{title_html}</div>
-              <div class="card-meta">{dt or "—"}</div>
+              <div class="card-date">{dt or "—"}</div>
               <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
               <div class="card-tags">{tags}</div>
             </div>""", unsafe_allow_html=True)
@@ -487,7 +689,7 @@ with tab_fav:
         df_fav = df_fav.drop_duplicates(subset=["Title"], keep="first")
 
     if df_fav.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" class="empty-state">No favorites yet. Click ☆ Save on any item to save it here.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
@@ -499,7 +701,7 @@ with tab_fav:
             pub     = str(row.get("Published Date", row.get("Saved At",""))).strip()[:16]
             source  = str(row.get("Source","")).strip()
 
-            title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+            title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
             tags = ""
             if ta and ta not in ("-",""): tags += f'<span class="tag tag-gold">{ta}</span>'
             if source:                    tags += f'<span class="tag">{source}</span>'
@@ -507,7 +709,7 @@ with tab_fav:
             st.markdown(f"""
             <div class="{card_border(pri)}">
               <div class="card-title">{title_html}</div>
-              <div class="card-meta">{pub or "—"}</div>
+              <div class="card-date">{pub or "—"}</div>
               <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
               <div class="card-tags">{priority_badge(pri)}{tags}</div>
             </div>""", unsafe_allow_html=True)
@@ -546,7 +748,7 @@ with tab_arc:
     arc_count = len(df_archive) if not df_archive.empty else 0
     st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
     if df_archive.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">Archive is empty.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="intel-card" class="empty-state">Archive is empty.</div>', unsafe_allow_html=True)
     else:
         arc_q = st.text_input("", placeholder="Search archive…", key="arc_search_input", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
