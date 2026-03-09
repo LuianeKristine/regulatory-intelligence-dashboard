@@ -148,12 +148,28 @@ details summary { font-size:11px !important; color:var(--text-3) !important; cur
 
 #MainMenu, footer, header { visibility:hidden; }
 
-/* hide sidebar collapse button icon text */
-button[data-testid="collapsedControl"],
+/* ── HIDE ALL SIDEBAR TOGGLE BUTTONS ── */
+[data-testid="collapsedControl"],
 [data-testid="stSidebarCollapseButton"],
-button[kind="header"] { display:none !important; }
-section[data-testid="stSidebar"] > div:first-child > div:first-child button {
-  display: none !important;
+[data-testid="stSidebarNavCollapseButton"],
+button[data-testid="stBaseButton-headerNoPadding"],
+button[aria-label="Close sidebar"],
+button[aria-label="Open sidebar"] { display:none !important; visibility:hidden !important; }
+section[data-testid="stSidebar"] > div > div > button,
+section[data-testid="stSidebar"] > div > button { display:none !important; }
+.st-emotion-cache-1egp75f, .eyeqlp52,
+div[data-testid="collapsedControl"] { display:none !important; }
+
+/* ── MOBILE ── */
+@media (max-width: 768px) {
+  .hgrid { grid-template-columns: 1fr !important; }
+  .block-container { padding: .8rem !important; }
+  .stTabs [data-baseweb="tab"] { padding: 7px 10px !important; font-size: 11.5px !important; }
+  .topbar-title { font-size: .9rem !important; }
+}
+@media (max-width: 480px) {
+  .stTabs [data-baseweb="tab"] { padding: 6px 7px !important; font-size: 11px !important; }
+  .card { padding: 11px 12px !important; }
 }
 </style>
 """, unsafe_allow_html=True)
