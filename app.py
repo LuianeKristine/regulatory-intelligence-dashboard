@@ -47,7 +47,7 @@ st.markdown("""
     -webkit-font-smoothing: antialiased;
   }
   .main { background: var(--bg) !important; }
-  .block-container { padding-top: 1.5rem !important; max-width: 860px !important; }
+  .block-container { padding-top: 1.5rem !important; max-width: 1100px !important; }
 
   /* SIDEBAR */
   section[data-testid="stSidebar"] {
@@ -296,6 +296,36 @@ st.markdown("""
     border-radius: var(--radius);
   }
 
+  /* HOME 3-COLUMN GRID */
+  .home-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .home-col {}
+  .home-col-hdr {
+    font-family: 'Instrument Serif', serif;
+    font-size: 1rem;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* MOBILE RESPONSIVE */
+  @media (max-width: 768px) {
+    .home-grid { grid-template-columns: 1fr; }
+    .block-container { padding: 1rem !important; }
+    .topbar { padding: 0 0 16px 0; }
+    .content { padding: 16px; }
+    .stTabs [data-baseweb="tab"] { padding: 8px 10px !important; font-size: 12px !important; }
+  }
+  @media (max-width: 480px) {
+    .stTabs [data-baseweb="tab"] { padding: 6px 8px !important; font-size: 11px !important; }
+  }
+
   #MainMenu, footer, header { visibility: hidden; }
   .viewerBadge_container__1QSob { display: none !important; }
 </style>
@@ -531,18 +561,6 @@ def paginated(df, key, prefix):
             st.session_state[key] += PAGE_SIZE
             st.rerun()
 
-# ── METRICS ───────────────────────────────────────────────────────────────────
-high_total = high_count(df_updates) + high_count(df_news)
-high_class = "metric-num alert" if high_total > 0 else "metric-num"
-
-st.markdown(f"""
-<div class="metrics">
-  <div class="metric"><div class="{high_class}">{high_total}</div><div class="metric-label">High Priority</div></div>
-  <div class="metric"><div class="metric-num">{len(df_updates)}</div><div class="metric-label">Regulatory</div></div>
-  <div class="metric"><div class="metric-num">{len(df_news)}</div><div class="metric-label">News</div></div>
-  <div class="metric"><div class="metric-num">{len(df_competitors)}</div><div class="metric-label">Competitors</div></div>
-</div>
-""", unsafe_allow_html=True)
 # ── TABS ──────────────────────────────────────────────────────────────────────
 tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs([
     "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
@@ -550,20 +568,51 @@ tab_home, tab_reg, tab_news_t, tab_comp, tab_search, tab_arc, tab_fav = st.tabs(
 
 # HOME
 with tab_home:
-    st.markdown('<div class="section-hdr">High Priority</div>', unsafe_allow_html=True)
     high_u   = df_updates[df_updates["Priority"].fillna("").str.strip().str.lower() == "high"] if not df_updates.empty and "Priority" in df_updates.columns else pd.DataFrame()
     high_n   = df_news[df_news["Priority"].fillna("").str.strip().str.lower() == "high"]       if not df_news.empty    and "Priority" in df_news.columns    else pd.DataFrame()
-    high_all = pd.concat([high_u, high_n]).head(10)
-    if high_all.empty:
-        st.markdown('<div class="intel-card intel-card-na" class="empty-state">No high priority items today.</div>', unsafe_allow_html=True)
-    else:
-        for _i, (_idx, row) in enumerate(high_all.iterrows()): render_card(row, idx=f"hall{_i}")
+    high_all = pd.concat([high_u, high_n]).head(5)
 
-    st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest Regulatory Updates</div>', unsafe_allow_html=True)
-    for _i, (_idx, row) in enumerate(df_updates.head(5).iterrows()): render_card(row, idx=f"uhome{_i}")
+    def home_card(row, idx):
+        title   = str(row.get("Title","")).strip() or "Untitled"
+        url     = str(row.get("URL","")).strip()
+        summary = str(row.get("AI Summary", row.get("Summary",""))).strip()
+        pri     = str(row.get("Priority","")).strip()
+        pub     = str(row.get("Published Date", row.get("Date",""))).strip()[:16]
+        ta      = str(row.get("Therapeutic Area","")).strip()
+        title_html = f'<a href="{url}" target="_blank" class="card-title">{title}</a>' if url else f'<span class="card-title">{title}</span>'
+        tags = priority_badge(pri)
+        if ta and ta not in ("-",""): tags += f' <span class="tag tag-gold">{ta}</span>'
+        return f"""
+        <div class="{card_border(pri)}" style="margin-bottom:6px;">
+          <div class="card-header">
+            <div class="card-title">{title_html}</div>
+            <span class="card-date">{pub or "—"}</span>
+          </div>
+          <div class="card-summary" style="font-size:12px;">{summary[:200] if summary else "No summary."}</div>
+          <div class="card-tags">{tags}</div>
+        </div>"""
 
-    st.markdown('<div class="section-hdr" style="margin-top:32px;">Latest News</div>', unsafe_allow_html=True)
-    for _i, (_idx, row) in enumerate(df_news.head(5).iterrows()): render_card(row, idx=f"nhome{_i}")
+    # Build columns HTML
+    col_high = "".join(home_card(r, f"hh{i}") for i, (_, r) in enumerate(high_all.iterrows())) if not high_all.empty else '<div class="empty-state" style="padding:24px;">No high priority items.</div>'
+    col_reg  = "".join(home_card(r, f"hr{i}") for i, (_, r) in enumerate(df_updates.head(5).iterrows())) if not df_updates.empty else '<div class="empty-state" style="padding:24px;">No items.</div>'
+    col_news = "".join(home_card(r, f"hn{i}") for i, (_, r) in enumerate(df_news.head(5).iterrows())) if not df_news.empty else '<div class="empty-state" style="padding:24px;">No items.</div>'
+
+    st.markdown(f"""
+    <div class="home-grid">
+      <div class="home-col">
+        <div class="home-col-hdr">🚨 High Priority</div>
+        {col_high}
+      </div>
+      <div class="home-col">
+        <div class="home-col-hdr">Regulatory Updates</div>
+        {col_reg}
+      </div>
+      <div class="home-col">
+        <div class="home-col-hdr">Latest News</div>
+        {col_news}
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # REGULATORY
 with tab_reg:
