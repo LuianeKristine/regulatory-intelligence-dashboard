@@ -386,7 +386,41 @@ with tab_fav:
     else:
         st.markdown(f'<div class="item-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_fav.iloc[::-1].iterrows()):
-            render_card(row, show_source=True, idx=f"fav{_i}")
+            title   = str(row.get("Title","")).strip() or "Untitled"
+            url     = str(row.get("URL","")).strip()
+            summary = str(row.get("AI Summary", row.get("Summary",""))).strip()
+            pri     = str(row.get("Priority","")).strip()
+            ta      = str(row.get("Therapeutic Area","")).strip()
+            pub     = str(row.get("Published Date", row.get("Saved At",""))).strip()[:16]
+            source  = str(row.get("Source","")).strip()
+
+            title_html = f'<a href="{url}" target="_blank" style="color:#1a1a1a;text-decoration:none;">{title}</a>' if url else title
+            tags = ""
+            if ta and ta not in ("-",""): tags += f'<span class="tag tag-gold">{ta}</span>'
+            if source:                    tags += f'<span class="tag">{source}</span>'
+
+            st.markdown(f"""
+            <div class="{card_border(pri)}">
+              <div class="card-title">{title_html}</div>
+              <div class="card-meta">{pub or "—"}</div>
+              <div class="card-summary">{summary[:450] if summary else "No summary available."}</div>
+              <div class="card-tags">{priority_badge(pri)}{tags}</div>
+            </div>""", unsafe_allow_html=True)
+
+            if st.button("🗑 Remove", key=f"del_fav_{_i}", help="Remove from favorites"):
+                try:
+                    gc = get_client()
+                    ws = gc.open("Raw Intelligence").worksheet("Favorites")
+                    all_rows = ws.get_all_values()
+                    # Find and delete the row matching this title
+                    for row_num, r in enumerate(all_rows[1:], start=2):
+                        if r and r[0] == title:
+                            ws.delete_rows(row_num)
+                            break
+                    st.cache_data.clear()
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"Could not remove: {e}")
 
 # ARCHIVE
 with tab_arc:
@@ -396,20 +430,9 @@ with tab_arc:
     if df_archive.empty:
         st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">Archive is empty.</div>', unsafe_allow_html=True)
     else:
-        arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
+        arc_q = st.text_input("", placeholder="Search archive…", key="arc_search_input", label_visibility="collapsed")
         df_arc_f = filter_df(df_archive, arc_q)
         st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
         for _i, (_idx, row) in enumerate(df_arc_f.head(50).iterrows()): render_card(row, idx=f"arc{_i}")
-        if len(df_arc_f) > 50:
-            st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
-    arc_count = len(df_archive) if not df_archive.empty else 0
-    st.markdown(f'<div class="archive-note">📦 {arc_count} items archived · Items older than 7 days are moved here automatically</div>', unsafe_allow_html=True)
-    if df_archive.empty:
-        st.markdown('<div class="intel-card" style="color:#aaa;text-align:center;padding:32px;">Archive is empty.</div>', unsafe_allow_html=True)
-    else:
-        arc_q = st.text_input("", placeholder="Search archive…", key="arc_search", label_visibility="collapsed")
-        df_arc_f = filter_df(df_archive, arc_q)
-        st.markdown(f'<div class="item-count">{len(df_arc_f)} items</div>', unsafe_allow_html=True)
-        for _i, (_idx, row) in enumerate(df_arc_f.head(50).iterrows()): render_card(row, idx=f"arc2{_i}")
         if len(df_arc_f) > 50:
             st.markdown(f'<div style="color:#aaa;text-align:center;font-size:12px;padding:16px;">Showing 50 of {len(df_arc_f)}. Use search to narrow.</div>', unsafe_allow_html=True)
