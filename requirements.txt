@@ -1,6 +1,9 @@
-fastapi
-uvicorn[standard]
+streamlit
 gspread
 google-auth
+google-generativeai
+feedparser
+requests
+beautifulsoup4
 pandas
-sendgrid
+pypdf
