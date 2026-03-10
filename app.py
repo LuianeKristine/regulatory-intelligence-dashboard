@@ -1,643 +1,464 @@
 import streamlit as st
-import pandas as pd
-import re
-from datetime import datetime, date, timezone, timedelta
 import gspread
 from google.oauth2.service_account import Credentials
-import threading
+import pandas as pd
+import json, re, datetime, os
 
 st.set_page_config(
-    page_title="Regulatory Intelligence Platform",
-    page_icon="⚕️",
+    page_title="Regulatory Intelligence",
+    page_icon="⚗️",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
 
-:root {
-  --bg: #f8f8f7;
-  --surface: #ffffff;
-  --surface-2: #f3f3f2;
-  --border: #e4e4e2;
-  --text-1: #1a1a18;
-  --text-2: #6b6b66;
-  --text-3: #a3a39e;
-  --gold: #92400e;
-  --gold-bg: #fef3c7;
-  --gold-bd: #fde68a;
-  --high: #991b1b;
-  --high-bg: #fef2f2;
-  --high-bd: #fecaca;
-  --med: #92400e;
-  --med-bg: #fffbeb;
-  --med-bd: #fde68a;
-  --low: #166534;
-  --low-bg: #f0fdf4;
-  --low-bd: #bbf7d0;
-  --chg: #1d4ed8;
-  --chg-bg: #eff6ff;
-  --chg-bd: #bfdbfe;
-  --r: 7px;
-}
-*, *::before, *::after { box-sizing: border-box; }
 html, body, [class*="css"] {
-  font-family: 'Inter', sans-serif !important;
-  background: var(--bg) !important;
-  color: var(--text-1) !important;
-  -webkit-font-smoothing: antialiased;
+    font-family: 'IBM Plex Sans', sans-serif;
+    background-color: #0a0e1a;
+    color: #e2e8f0;
 }
-.main { background: var(--bg) !important; }
-.block-container { padding: 1.2rem 1.5rem !important; max-width: 1080px !important; }
-
 section[data-testid="stSidebar"] {
-  background: var(--surface) !important;
-  border-right: 1px solid var(--border) !important;
+    background: #0d1220;
+    border-right: 1px solid #1e2d40;
 }
-section[data-testid="stSidebar"],
-section[data-testid="stSidebar"] * {
-  font-family: 'Inter', sans-serif !important;
-  color: var(--text-1) !important;
+section[data-testid="stSidebar"] * { color: #94a3b8 !important; }
+.main .block-container { padding: 1.5rem 2rem; max-width: 1400px; }
+
+.reg-header {
+    display: flex; align-items: center; gap: 14px;
+    padding: 1.2rem 0 1rem;
+    border-bottom: 1px solid #1e2d40;
+    margin-bottom: 1.5rem;
 }
-section[data-testid="stSidebar"] label {
-  font-size: 10px !important; font-weight: 600 !important;
-  text-transform: uppercase !important; letter-spacing: .1em !important;
-  color: var(--text-3) !important;
+.reg-header h1 {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 1.25rem; font-weight: 500;
+    color: #e2e8f0; margin: 0; letter-spacing: 0.03em;
 }
-section[data-testid="stSidebar"] .stTextInput input {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important;
-  background: var(--surface-2) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: var(--r) !important;
-  color: var(--text-1) !important;
-}
-section[data-testid="stSidebar"] .stMultiSelect [data-baseweb="select"] {
-  font-family: 'Inter', sans-serif !important;
-  font-size: 13px !important;
-  background: var(--surface-2) !important;
-  border-color: var(--border) !important;
-  border-radius: var(--r) !important;
-}
-section[data-testid="stSidebar"] .stButton > button {
-  font-family: 'Inter', sans-serif !important;
+.reg-header .subtitle {
+    font-size: 0.68rem; color: #475569;
+    font-family: 'IBM Plex Mono', monospace;
+    letter-spacing: 0.08em; text-transform: uppercase;
 }
 
-.topbar { display:flex; align-items:center; justify-content:space-between; padding-bottom:16px; border-bottom:1px solid var(--border); margin-bottom:22px; }
-.topbar-title { font-size:1rem; font-weight:600; color:var(--text-1); letter-spacing:-.02em; }
-.topbar-meta { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-3); display:flex; align-items:center; gap:7px; }
-.live { width:6px; height:6px; border-radius:50%; background:#22c55e; display:inline-block; box-shadow:0 0 0 2px rgba(34,197,94,.18); }
-
-.sec-hdr { font-size:13px; font-weight:600; color:var(--text-1); margin:0 0 4px; }
-.sec-count { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:var(--text-3); margin-bottom:12px; }
-
-.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:14px 16px; margin-bottom:5px; position:relative; overflow:hidden; }
-.card::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--border); }
-.card-high::before   { background:var(--high); }
-.card-medium::before { background:#d97706; }
-.card-low::before    { background:#16a34a; }
-.card-na::before     { background:var(--border); }
-.card-changed::before { background:var(--chg); }
-.card-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:5px; }
-.card-ttl { font-size:13px; font-weight:500; color:var(--text-1); line-height:1.45; }
-.card-ttl a { color:var(--text-1); text-decoration:none; }
-.card-ttl a:hover { color:#2563eb; }
-.card-dt  { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); white-space:nowrap; flex-shrink:0; padding-top:1px; }
-.card-sum { font-size:12px; color:var(--text-2); line-height:1.6; margin-bottom:8px; }
-.card-raw { font-size:11px; color:var(--text-3); line-height:1.55; margin-bottom:8px; font-style:italic; border-left:2px solid var(--border); padding-left:8px; }
-.card-tags { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
-.card-pdf  { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; text-decoration:none; }
-.card-pdf:hover { background:#fee2e2; }
-
-.tag { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:500; padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-2); }
-.tag-gold { background:var(--gold-bg); color:var(--gold); border-color:var(--gold-bd); }
-.tag-chg  { background:var(--chg-bg);  color:var(--chg);  border-color:var(--chg-bd); }
-.badge-high { background:var(--high-bg); color:var(--high); border:1px solid var(--high-bd); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-.badge-med  { background:var(--med-bg);  color:var(--med);  border:1px solid var(--med-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-.badge-low  { background:var(--low-bg);  color:var(--low);  border:1px solid var(--low-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-.badge-chg  { background:var(--chg-bg);  color:var(--chg);  border:1px solid var(--chg-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
-
-.chg-banner { background:var(--chg-bg); border:1px solid var(--chg-bd); border-radius:var(--r); padding:10px 14px; margin-bottom:14px; font-size:12px; color:var(--chg); display:flex; align-items:center; gap:8px; }
-
-.hgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; align-items:start; width:100%; overflow:hidden; }
-.hcol  { min-width:0; overflow:hidden; }
-.hcol-hdr { font-size:12px; font-weight:600; color:var(--text-1); padding-bottom:8px; border-bottom:1px solid var(--border); margin-bottom:10px; }
-.hcol-scroll { max-height:560px; overflow-y:auto; overflow-x:hidden; scrollbar-width:thin; scrollbar-color:var(--border) transparent; }
-.hcol-scroll::-webkit-scrollbar { width:3px; }
-.hcol-scroll::-webkit-scrollbar-thumb { background:var(--border); border-radius:3px; }
-
-.hcard { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:11px 13px; margin-bottom:5px; position:relative; overflow:hidden; }
-.hcard::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; background:var(--border); }
-.hcard-high::before   { background:var(--high); }
-.hcard-medium::before { background:#d97706; }
-.hcard-low::before    { background:#16a34a; }
-.hcard-na::before     { background:var(--border); }
-.hcard-ttl { font-size:12px; font-weight:500; color:var(--text-1); line-height:1.4; margin-bottom:5px; word-break:break-word; overflow:hidden; }
-.hcard-ttl a { color:var(--text-1); text-decoration:none; }
-.hcard-ttl a:hover { color:#2563eb; }
-.hcard-sum { font-size:11px; color:var(--text-2); line-height:1.55; margin-bottom:8px; word-break:break-word; overflow:hidden; }
-.hcard-foot { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
-.hcard-dt { font-family:'JetBrains Mono',monospace; font-size:9.5px; color:var(--text-3); margin-right:4px; }
-
-.stTabs [data-baseweb="tab-list"] { background:transparent !important; border-bottom:1px solid var(--border) !important; gap:0 !important; padding:0 !important; }
-.stTabs [data-baseweb="tab"] { color:var(--text-3) !important; font-family:'Inter',sans-serif !important; font-size:12.5px !important; font-weight:400 !important; padding:9px 14px !important; border-radius:0 !important; border-bottom:2px solid transparent !important; margin-bottom:-1px !important; }
-.stTabs [aria-selected="true"] { color:var(--text-1) !important; border-bottom:2px solid var(--text-1) !important; background:transparent !important; font-weight:600 !important; }
-
-.stButton > button { background:var(--surface) !important; color:var(--text-2) !important; border:1px solid var(--border) !important; border-radius:5px !important; font-family:'Inter',sans-serif !important; font-size:11px !important; padding:3px 10px !important; height:auto !important; line-height:1.6 !important; transition:all .1s !important; }
-.stButton > button:hover { background:var(--surface-2) !important; color:var(--text-1) !important; border-color:var(--text-3) !important; }
-
-.stTextInput input { background:var(--surface) !important; border:1px solid var(--border) !important; border-radius:var(--r) !important; font-family:'Inter',sans-serif !important; font-size:13px !important; color:var(--text-1) !important; }
-.stTextInput input::placeholder { color:var(--text-3) !important; }
-
-details { background:var(--surface) !important; border:1px solid var(--border) !important; border-radius:5px !important; margin-top:3px !important; }
-details summary { font-size:11px !important; color:var(--text-3) !important; cursor:pointer; }
-
-.empty { text-align:center; padding:36px 24px; color:var(--text-3); font-size:12.5px; background:var(--surface); border:1px dashed var(--border); border-radius:var(--r); }
-.arc-note { background:var(--surface); border:1px solid var(--border); border-radius:var(--r); padding:9px 13px; font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--text-3); margin-bottom:16px; }
-
-#MainMenu, footer, header { visibility:hidden; }
-
-[data-testid="collapsedControl"],
-[data-testid="stSidebarCollapseButton"],
-[data-testid="stSidebarNavCollapseButton"],
-button[data-testid="stBaseButton-headerNoPadding"],
-button[aria-label="Close sidebar"],
-button[aria-label="Open sidebar"] { display:none !important; visibility:hidden !important; }
-section[data-testid="stSidebar"] > div > div > button,
-section[data-testid="stSidebar"] > div > button { display:none !important; }
-.st-emotion-cache-1egp75f, .eyeqlp52,
-div[data-testid="collapsedControl"] { display:none !important; }
-
-@media (max-width: 768px) {
-  .hgrid { grid-template-columns: 1fr !important; }
-  .block-container { padding: .8rem !important; }
-  .stTabs [data-baseweb="tab"] { padding: 7px 10px !important; font-size: 11.5px !important; }
-  .topbar-title { font-size: .9rem !important; }
+.stats-row { display: flex; gap: 10px; margin-bottom: 1.4rem; flex-wrap: wrap; }
+.stat-chip {
+    background: #0d1220; border: 1px solid #1e2d40;
+    border-radius: 6px; padding: 10px 18px;
+    display: flex; align-items: center; gap: 10px; min-width: 130px;
 }
-@media (max-width: 480px) {
-  .stTabs [data-baseweb="tab"] { padding: 6px 7px !important; font-size: 11px !important; }
-  .card { padding: 11px 12px !important; }
+.stat-chip .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-red    { background: #ef4444; box-shadow: 0 0 6px #ef444466; }
+.dot-yellow { background: #f59e0b; box-shadow: 0 0 6px #f59e0b66; }
+.dot-green  { background: #10b981; box-shadow: 0 0 6px #10b98166; }
+.dot-blue   { background: #3b82f6; box-shadow: 0 0 6px #3b82f666; }
+.stat-chip .count { font-family: 'IBM Plex Mono', monospace; font-size: 1.35rem; font-weight: 500; color: #e2e8f0; }
+.stat-chip .label { font-size: 0.68rem; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; }
+
+.section-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.65rem; color: #475569;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    margin: 1.4rem 0 0.7rem;
+    display: flex; align-items: center; gap: 8px;
 }
+.section-label::after { content: ''; flex: 1; height: 1px; background: #1e2d40; }
+
+.reg-card {
+    background: #0d1220; border: 1px solid #1e2d40;
+    border-radius: 8px; padding: 15px 18px;
+    margin-bottom: 9px; position: relative;
+}
+.reg-card:hover { border-color: #2d4a6e; }
+.reg-card.card-high   { border-left: 3px solid #ef4444; }
+.reg-card.card-medium { border-left: 3px solid #f59e0b; }
+.reg-card.card-low    { border-left: 3px solid #10b981; }
+
+.card-top {
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 12px; margin-bottom: 7px;
+}
+.card-title { font-size: 0.88rem; font-weight: 500; color: #e2e8f0; line-height: 1.4; flex: 1; }
+.card-title a { color: #e2e8f0 !important; text-decoration: none; }
+.card-title a:hover { color: #60a5fa !important; }
+
+.badges { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; flex-shrink: 0; }
+.badge {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.6rem; padding: 2px 7px; border-radius: 3px;
+    letter-spacing: 0.04em; font-weight: 500; white-space: nowrap;
+}
+.badge-high   { background: #2d1515; color: #ef4444; border: 1px solid #3d1818; }
+.badge-medium { background: #2d1f0a; color: #f59e0b; border: 1px solid #3d2a0d; }
+.badge-low    { background: #0a2d1f; color: #10b981; border: 1px solid #0d3d2a; }
+.badge-source { background: #111827; color: #60a5fa; border: 1px solid #1e3a5f; }
+.badge-type   { background: #111827; color: #94a3b8; border: 1px solid #1e2d40; }
+.badge-pdf    { background: #1a0d2d; color: #a78bfa; border: 1px solid #2d1a4a; }
+.badge-changed{ background: #2d1515; color: #f87171; border: 1px solid #4a1f1f; }
+
+.pdot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 5px; }
+.pdot-red    { background:#ef4444; box-shadow:0 0 4px #ef444455; }
+.pdot-yellow { background:#f59e0b; box-shadow:0 0 4px #f59e0b55; }
+.pdot-green  { background:#10b981; box-shadow:0 0 4px #10b98155; }
+
+.card-summary { font-size: 0.81rem; color: #94a3b8; line-height: 1.6; margin: 5px 0; }
+.card-impl    { font-size: 0.76rem; color: #64748b; line-height: 1.5; margin: 3px 0; }
+
+.changed-banner {
+    background: #160808; border: 1px solid #3d1818;
+    border-radius: 5px; padding: 8px 12px;
+    margin: 7px 0; font-size: 0.79rem; color: #fca5a5;
+    display: flex; gap: 8px; align-items: flex-start;
+}
+
+.card-meta {
+    display: flex; gap: 14px; margin-top: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 0.64rem; color: #374151; flex-wrap: wrap;
+}
+.card-meta a { color: #7c3aed !important; text-decoration: none; }
+.card-meta a:hover { color: #a78bfa !important; }
+
+.alert-bar {
+    background: #160808; border: 1px solid #ef4444;
+    border-radius: 6px; padding: 10px 16px;
+    font-size: 0.79rem; color: #fca5a5;
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 1rem;
+}
+.empty-state {
+    text-align: center; padding: 3rem;
+    color: #1e2d40; font-family: 'IBM Plex Mono', monospace; font-size: 0.78rem;
+}
+
+.stTabs [data-baseweb="tab-list"] { gap: 0; background: transparent; border-bottom: 1px solid #1e2d40; }
+.stTabs [data-baseweb="tab"] {
+    background: transparent !important; color: #475569 !important;
+    border: none !important; font-family: 'IBM Plex Mono', monospace !important;
+    font-size: 0.72rem !important; text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 16px !important;
+}
+.stTabs [aria-selected="true"] { color: #e2e8f0 !important; border-bottom: 2px solid #3b82f6 !important; }
+
+.stTextInput input {
+    background: #0d1220 !important; border: 1px solid #1e2d40 !important;
+    color: #e2e8f0 !important; font-family: 'IBM Plex Mono', monospace; font-size: 0.8rem; border-radius: 6px;
+}
+.stTextInput input:focus { border-color: #3b82f6 !important; box-shadow: none !important; }
+.stSelectbox > div > div { background: #0d1220 !important; border: 1px solid #1e2d40 !important; color: #94a3b8 !important; }
+#MainMenu, footer { visibility: hidden; }
+.stDeployButton { display: none; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── CONSTANTS ─────────────────────────────────────────────────
-SHEET_NAME = "Raw Intelligence"
-SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+# ── SHEETS ───────────────────────────────────────────────────
+SCOPES = ["https://www.googleapis.com/auth/spreadsheets","https://www.googleapis.com/auth/drive.readonly"]
 
-# ── DATA ──────────────────────────────────────────────────────
 @st.cache_resource(ttl=300)
-def get_client():
-    creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
+def get_gc():
+    key_data = os.environ.get("GCP_SERVICE_ACCOUNT_JSON")
+    if not key_data:
+        st.error("⚠️ GCP_SERVICE_ACCOUNT_JSON not configured.")
+        st.stop()
+    creds = Credentials.from_service_account_info(json.loads(key_data), scopes=SCOPES)
     return gspread.authorize(creds)
 
-@st.cache_data(ttl=300)
-def load_tab(tab_name):
+@st.cache_data(ttl=180)
+def load_tab(name):
     try:
-        gc = get_client()
-        ws = gc.open(SHEET_NAME).worksheet(tab_name)
+        ws = get_gc().open("Raw Intelligence").worksheet(name)
         data = ws.get_all_records()
-        df = pd.DataFrame(data) if data else pd.DataFrame()
-        if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
-            df = df[df["Deleted"].fillna("") != "deleted"]
-        return df
-    except gspread.exceptions.WorksheetNotFound:
-        return pd.DataFrame()
-    except Exception as e:
-        if tab_name in ("Changes",):
-            return pd.DataFrame()
-        st.error(f"Could not load '{tab_name}': {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(data) if data else pd.DataFrame()
+    except: return pd.DataFrame()
 
-# ── HELPERS ───────────────────────────────────────────────────
-def clean(text, max_len=400):
-    t = str(text or "")
-    t = re.sub(r'<[^>]+>', ' ', t)
-    t = re.sub(r'!\[.*?\]\(.*?\)', '', t)
-    t = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', t)
-    t = re.sub(r'[#*_`>~]+', '', t)
-    t = re.sub(r'\s+', ' ', t).strip()
-    return (t[:max_len] + "…") if len(t) > max_len else t
+def safe(v, d=""):
+    if v is None: return d
+    if isinstance(v, float) and pd.isna(v): return d
+    return str(v).strip()
 
-def pclass(p):
-    p = str(p).strip().lower()
-    return p if p in ("high","medium","low") else "na"
+def pinfo(p):
+    p = (p or "").lower()
+    if "high"   in p: return "high",   "badge-high",   "pdot pdot-red"
+    if "medium" in p: return "medium", "badge-medium", "pdot pdot-yellow"
+    return "low", "badge-low", "pdot pdot-green"
 
-def pbadge(p):
-    pc = pclass(p)
-    if pc == "high":   return '<span class="badge-high">HIGH</span>'
-    if pc == "medium": return '<span class="badge-med">MED</span>'
-    if pc == "low":    return '<span class="badge-low">LOW</span>'
-    return ""
+def render_card(row):
+    title    = safe(row.get("Title","Untitled"))
+    url      = safe(row.get("URL",""))
+    pdf_url  = safe(row.get("PDF URL",""))
+    source   = safe(row.get("Source",""))
+    doc_type = safe(row.get("Doc Type",""))
+    pub      = safe(row.get("Published Date", row.get("date","")))
+    last_mod = safe(row.get("Last Modified",""))
+    scan     = safe(row.get("Last Scan", row.get("Scan Date","")))
+    summary  = safe(row.get("AI Summary","")) or safe(row.get("Summary",""))
+    changed  = safe(row.get("What Changed",""))
+    impl     = safe(row.get("Implications",""))
+    actions  = safe(row.get("Action Items",""))
+    priority = safe(row.get("Priority","Medium"))
 
-def build_tags(row):
-    ta  = clean(row.get("Therapeutic Area", ""), 60)
-    ha  = clean(row.get("Health Authority",  ""), 60)
-    src = clean(row.get("Source",            ""), 60)
-    pri = str(row.get("Priority", "")).strip()
-    out = pbadge(pri)
-    if ta  and ta  not in ("-",): out += f' <span class="tag tag-gold">{ta}</span>'
-    if ha  and ha  not in ("-",) and ha != src: out += f' <span class="tag">{ha}</span>'
-    if src and src not in ("-",): out += f' <span class="tag">{src}</span>'
-    return out
+    pclass, pbadge, pdotcls = pinfo(priority)
+    title_html = f'<a href="{url}" target="_blank">{title}</a>' if url else title
 
-def filter_df(df, search="", ha_f=None, ta_f=None, pri_f=None):
+    badges = f'<span class="badge {pbadge}">{priority.upper()}</span>'
+    if changed and changed not in ("New document",""):
+        badges += ' <span class="badge badge-changed">⚡ UPDATED</span>'
+    if pdf_url:
+        badges += ' <span class="badge badge-pdf">📄 PDF</span>'
+    if source:
+        badges += f' <span class="badge badge-source">{source}</span>'
+    if doc_type:
+        badges += f' <span class="badge badge-type">{doc_type}</span>'
+
+    html = f"""<div class="reg-card card-{pclass}">
+  <div class="card-top">
+    <div class="card-title"><span class="{pdotcls}"></span>{title_html}</div>
+    <div class="badges">{badges}</div>
+  </div>"""
+
+    if changed and changed not in ("New document",""):
+        html += f'<div class="changed-banner"><span>⚡</span><div><strong>What changed:</strong> {changed}</div></div>'
+
+    if summary:
+        html += f'<div class="card-summary">{summary}</div>'
+
+    if impl:
+        short = impl[:200] + "…" if len(impl) > 200 else impl
+        html += f'<div class="card-impl">⚖️ {short}</div>'
+
+    if actions:
+        first = actions.split("\n")[0].replace("•","").strip()
+        if first:
+            html += f'<div class="card-impl">→ {first[:160]}</div>'
+
+    meta = []
+    if pub:      meta.append(f"📅 {pub}")
+    if last_mod: meta.append(f"✏️ last modified: {last_mod}")
+    if scan:     meta.append(f"🔍 scanned: {scan}")
+    if pdf_url:  meta.append(f'<a href="{pdf_url}" target="_blank">📄 open PDF</a>')
+    if meta:
+        html += f'<div class="card-meta">{"  ·  ".join(meta)}</div>'
+
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+def news_to_card(row):
+    return {
+        "Title": row.get("Title",""), "URL": row.get("URL",""),
+        "PDF URL": "", "Source": row.get("Source",""), "Doc Type": "News",
+        "Published Date": row.get("Published Date",""), "Last Modified": "",
+        "Last Scan": row.get("Scan Date",""), "AI Summary": row.get("AI Summary",""),
+        "What Changed": "", "Implications": "", "Action Items": "",
+        "Priority": row.get("Priority","Medium"),
+    }
+
+def filter_df(df, q="", priority="All", source="All"):
     if df.empty: return df
-    if search:
-        q = search.lower()
-        df = df[df.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
-    if ha_f:
-        col = "Health Authority" if "Health Authority" in df.columns else "Source"
-        if col in df.columns:
-            df = df[df[col].fillna("").str.contains("|".join(ha_f), case=False)]
-    if ta_f and "Therapeutic Area" in df.columns:
-        df = df[df["Therapeutic Area"].fillna("").str.contains("|".join(ta_f), case=False)]
-    if pri_f and "Priority" in df.columns:
-        df = df[df["Priority"].fillna("").str.lower().isin([p.lower() for p in pri_f])]
-    return df
+    f = df.copy()
+    if q:
+        mask = f.apply(lambda r: q.lower() in str(r.values).lower(), axis=1)
+        f = f[mask]
+    if priority != "All" and "Priority" in f.columns:
+        f = f[f["Priority"].str.lower() == priority.lower()]
+    if source != "All" and "Source" in f.columns:
+        f = f[f["Source"] == source]
+    if "Priority" in f.columns:
+        order = {"high":0,"medium":1,"low":2}
+        f["_s"] = f["Priority"].str.lower().map(lambda x: order.get(x,1))
+        f = f.sort_values("_s").drop(columns=["_s"])
+    return f
 
-def sort_df(df):
-    if df.empty: return df
-    pri_order = {"high": 0, "medium": 1, "low": 2, "": 3}
-    if "Priority" in df.columns:
-        df = df.copy()
-        df["_pri_sort"] = df["Priority"].fillna("").str.strip().str.lower().map(
-            lambda p: pri_order.get(p, 3)
-        )
-    else:
-        df = df.copy()
-        df["_pri_sort"] = 3
+# ── LOAD ─────────────────────────────────────────────────────
+with st.spinner("Loading..."):
+    df_docs = load_tab("Updates")
+    df_news = load_tab("News")
+    df_chg  = load_tab("Changes")
+    df_favs = load_tab("Favorites")
 
-    date_col = "Published Date" if "Published Date" in df.columns else ("Date" if "Date" in df.columns else None)
-    if date_col:
-        df["_date_sort"] = pd.to_datetime(df[date_col].fillna(""), errors="coerce")
-        df = df.sort_values(["_pri_sort", "_date_sort"], ascending=[True, False])
-        df = df.drop(columns=["_pri_sort", "_date_sort"])
-    else:
-        df = df.sort_values("_pri_sort", ascending=True)
-        df = df.drop(columns=["_pri_sort"])
-    return df
+for df in [df_docs, df_news, df_chg]:
+    if not df.empty and "Priority" not in df.columns:
+        df["Priority"] = "Medium"
 
-def render_card(row, key, show_save=True, show_change_badge=False):
-    title    = clean(row.get("Title",   ""), 200) or "Untitled"
-    url      = str(row.get("URL", "")).strip()
-    pdf_url  = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
-    summary  = clean(row.get("AI Summary", row.get("Summary", "")), 400)
-    raw_exc  = clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300)
-    pri      = str(row.get("Priority", "")).strip()
-    pub      = clean(row.get("Published Date", row.get("Date", "")), 16)
-    src      = clean(row.get("Source", ""), 60)
-    ta       = clean(row.get("Therapeutic Area", ""), 60)
-    impl     = clean(row.get("Implications", ""), 600)
-    actions  = clean(row.get("Action Items",  ""), 600)
-    chg_date = clean(row.get("Change Detected Date", ""), 16)
+def fp(df, p): return df[df["Priority"].str.lower() == p.lower()] if not df.empty and "Priority" in df.columns else pd.DataFrame()
 
-    pc   = pclass(pri)
-    card_class = "card-changed" if show_change_badge else f"card-{pc}"
-    ttl  = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-    tags = build_tags(row)
+high_docs   = fp(df_docs, "High")
+med_docs    = fp(df_docs, "Medium")
+high_news   = fp(df_news, "High")
+n_chg       = len(df_chg)
 
-    # PDF link badge
-    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
-
-    # Change badge
-    chg_badge = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
-                f' <span class="badge-chg">UPDATED</span>' if show_change_badge else "")
-
-    # Raw excerpt block (shown only if present)
-    raw_block = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
-
-    st.markdown(f"""
-    <div class="card {card_class}">
-      <div class="card-hdr">
-        <div class="card-ttl">{ttl}</div>
-        <span class="card-dt">{pub or "—"}</span>
-      </div>
-      <div class="card-sum">{summary or "No summary available."}</div>
-      {raw_block}
-      <div class="card-tags">{tags}{pdf_badge}{chg_badge}</div>
-    </div>""", unsafe_allow_html=True)
-
-    if impl or actions:
-        with st.expander("Analysis"):
-            if impl:    st.write(f"**Implications:** {impl}")
-            if actions: st.write(f"**Actions:** {actions}")
-
-    if show_save:
-        already = title in st.session_state.get("saved_favs", set())
-        if st.button("⭐ Saved" if already else "☆ Save", key=f"sav_{key}", disabled=already):
-            st.session_state.setdefault("saved_favs",   set()).add(title)
-            st.session_state.setdefault("pending_favs", []).append({
-                "Title": title, "URL": url, "PDF URL": pdf_url, "Source": src,
-                "Published Date": pub, "Priority": pri,
-                "Therapeutic Area": ta, "AI Summary": summary,
-                "Saved At": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
-                "Deleted": "",
-            })
-            def _write(t, u, pu, s, p, pr, ta_, sm, dt, sname, sec):
-                try:
-                    c2 = Credentials.from_service_account_info(sec, scopes=SCOPES)
-                    gspread.authorize(c2).open(sname).worksheet("Favorites").append_row(
-                        [t, u, pu, s, p, pr, ta_, sm, dt, ""])
-                except Exception: pass
-            threading.Thread(target=_write, args=(
-                title, url, pdf_url, src, pub, pri, ta, summary,
-                datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
-                SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
-            st.rerun()
-
-# ── SIDEBAR ───────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("""<div style="padding:2px 0 18px;border-bottom:1px solid #eee;margin-bottom:14px;">
-      <div style="font-size:1rem;font-weight:700;letter-spacing:-.02em;font-family:'Inter',sans-serif;">RI</div>
-      <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;font-family:'Inter',sans-serif;">Regulatory Intelligence</div>
-    </div>""", unsafe_allow_html=True)
-    search_q = st.text_input("", placeholder="Filter…", label_visibility="collapsed")
-    sel_pri  = st.multiselect("Priority",         ["High","Medium","Low"])
-    sel_ha   = st.multiselect("Health Authority", ["FDA","EMA","ICH"])
-    sel_ta   = st.multiselect("Therapeutic Area", ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"])
-    if st.button("↺  Refresh", use_container_width=True):
-        st.cache_data.clear(); st.rerun()
-    _t = datetime.now(timezone(timedelta(hours=-3))).strftime("%H:%M")
-    st.markdown(f'<div style="font-size:10px;color:#bbb;text-align:center;margin-top:8px;font-family:JetBrains Mono,monospace;">updated {_t}</div>', unsafe_allow_html=True)
-
-# ── HEADER ────────────────────────────────────────────────────
-st.markdown(f"""<div class="topbar">
-  <div class="topbar-title">Regulatory Intelligence Platform</div>
-  <div class="topbar-meta"><span class="live"></span>{date.today().strftime("%a, %b %d %Y")}</div>
+# ── HEADER ───────────────────────────────────────────────────
+st.markdown(f"""
+<div class="reg-header">
+  <div>
+    <div class="subtitle">Pharma Regulatory Intelligence Platform</div>
+    <h1>⚗️ RAW INTELLIGENCE</h1>
+  </div>
+  <div style="margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:0.68rem;color:#1e2d40">
+    {datetime.date.today().strftime("%d %b %Y")}
+  </div>
 </div>""", unsafe_allow_html=True)
 
-# ── LOAD ──────────────────────────────────────────────────────
-with st.spinner("Loading…"):
-    df_upd  = load_tab("Updates")
-    df_news = load_tab("News")
-    df_comp = load_tab("Competitors")
-    df_arc  = load_tab("Archive")
-    df_chg  = load_tab("Changes")   # ← new: document change alerts
+if n_chg > 0:
+    news_note = f" + {len(high_news)} treatment news flagged HIGH." if len(high_news) else ""
+    st.markdown(f'<div class="alert-bar">⚡ <strong>{n_chg} document(s) changed since last scan</strong> — all marked HIGH PRIORITY.{news_note}</div>', unsafe_allow_html=True)
 
-tab_home, tab_reg, tab_nws, tab_cmp, tab_chg_t, tab_srch, tab_arc_t, tab_fav = st.tabs([
-    "Home", "Regulatory", "News", "Competitors",
-    f"⚠️ Changes{f' ({len(df_chg)})' if not df_chg.empty else ''}",
-    "Search", "Archive", "⭐ Favorites"
+st.markdown(f"""
+<div class="stats-row">
+  <div class="stat-chip"><div class="dot dot-red"></div><div><div class="count">{len(high_docs)+n_chg}</div><div class="label">High Priority</div></div></div>
+  <div class="stat-chip"><div class="dot dot-yellow"></div><div><div class="count">{len(med_docs)}</div><div class="label">Medium</div></div></div>
+  <div class="stat-chip"><div class="dot dot-red"></div><div><div class="count">{n_chg}</div><div class="label">Changes</div></div></div>
+  <div class="stat-chip"><div class="dot dot-blue"></div><div><div class="count">{len(df_news)}</div><div class="label">News</div></div></div>
+  <div class="stat-chip"><div class="dot dot-green"></div><div><div class="count">{len(df_docs)}</div><div class="label">Docs Monitored</div></div></div>
+</div>""", unsafe_allow_html=True)
+
+# ── TABS ─────────────────────────────────────────────────────
+t_home, t_fda, t_ema, t_ich, t_chg, t_news, t_search, t_favs = st.tabs([
+    "🏠 Home", "🇺🇸 FDA", "🇪🇺 EMA", "📋 ICH",
+    f"⚡ Changes ({n_chg})", "📰 News", "🔍 Search", "⭐ Favorites"
 ])
 
-# ══════════════════════════════════════════════════════════════
 # HOME
-# ══════════════════════════════════════════════════════════════
-with tab_home:
-    def hcard(row):
-        title   = clean(row.get("Title", ""), 150) or "Untitled"
-        url     = str(row.get("URL", "")).strip()
-        pdf_url = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
-        summary = clean(row.get("AI Summary", row.get("Summary", "")), 150)
-        pri     = str(row.get("Priority", "")).strip()
-        pub     = clean(row.get("Published Date", row.get("Date", "")), 16)
-        ta      = clean(row.get("Therapeutic Area", ""), 60)
-        ha      = clean(row.get("Health Authority", row.get("Source", "")), 60)
-        src     = clean(row.get("Source", ""), 60)
-        pc      = pclass(pri)
-        ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-        tags = pbadge(pri)
-        if ta  and ta  not in ("-",):             tags += f' <span class="tag tag-gold">{ta}</span>'
-        if ha  and ha  not in ("-",) and ha!=src: tags += f' <span class="tag">{ha}</span>'
-        if src and src not in ("-",):             tags += f' <span class="tag">{src}</span>'
-        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
-        return f"""<div class="hcard hcard-{pc}">
-  <div class="hcard-ttl">{ttl}</div>
-  <div class="hcard-sum">{summary}</div>
-  <div class="hcard-foot"><span class="hcard-dt">{pub}</span>{tags}{pdf_badge}</div>
-</div>"""
-
-    def col_html(df_):
-        if df_ is None or df_.empty:
-            return '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
-        return "".join(hcard(r) for _, r in sort_df(df_).iterrows())
-
-    high_parts = []
-    for df_ in [df_upd, df_news]:
-        if not df_.empty and "Priority" in df_.columns:
-            high_parts.append(df_[df_["Priority"].fillna("").str.strip().str.lower()=="high"])
-    df_high = pd.concat(high_parts) if high_parts else pd.DataFrame()
-
-    # Changes alert in home
+with t_home:
     if not df_chg.empty:
-        st.markdown(f'<div class="chg-banner">⚠️ <strong>{len(df_chg)} document(s) were updated</strong> since last scan — check the Changes tab for details.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-label">⚡ Document changes detected</div>', unsafe_allow_html=True)
+        for _, r in df_chg.iterrows(): render_card(r)
 
-    st.markdown(f"""<div class="hgrid">
-  <div class="hcol">
-    <div class="hcol-hdr">🚨 High Priority</div>
-    <div class="hcol-scroll">{col_html(df_high)}</div>
-  </div>
-  <div class="hcol">
-    <div class="hcol-hdr">Regulatory Updates</div>
-    <div class="hcol-scroll">{col_html(df_upd)}</div>
-  </div>
-  <div class="hcol">
-    <div class="hcol-hdr">Latest News</div>
-    <div class="hcol-scroll">{col_html(df_news)}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+    shown_urls = set(df_chg["URL"].tolist()) if not df_chg.empty else set()
+    high_only = high_docs[~high_docs["URL"].isin(shown_urls)] if not high_docs.empty else pd.DataFrame()
+    if not high_only.empty:
+        st.markdown('<div class="section-label">🔴 High priority — regulatory documents</div>', unsafe_allow_html=True)
+        for _, r in high_only.iterrows(): render_card(r)
 
-# ══════════════════════════════════════════════════════════════
-# REGULATORY
-# ══════════════════════════════════════════════════════════════
-with tab_reg:
-    st.markdown('<div class="sec-hdr">Regulatory Updates</div>', unsafe_allow_html=True)
-    df_f = sort_df(filter_df(df_upd, search_q, sel_ha, sel_ta, sel_pri))
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    if df_f.empty:
-        st.markdown('<div class="empty">No items match your filters.</div>', unsafe_allow_html=True)
+    if not high_news.empty:
+        st.markdown('<div class="section-label">🔴 High priority — treatment news</div>', unsafe_allow_html=True)
+        for _, r in high_news.iterrows(): render_card(news_to_card(r))
+
+    if not med_docs.empty:
+        st.markdown('<div class="section-label">🟡 Medium priority — regulatory documents</div>', unsafe_allow_html=True)
+        for _, r in med_docs.iterrows(): render_card(r)
+
+    if df_chg.empty and high_only.empty and high_news.empty and med_docs.empty:
+        st.markdown('<div class="empty-state">// no high or medium priority items —<br>run the scanner to populate intelligence</div>', unsafe_allow_html=True)
+
+# FDA
+with t_fda:
+    fda_df = df_docs[df_docs["Source"].str.upper() == "FDA"] if not df_docs.empty and "Source" in df_docs.columns else pd.DataFrame()
+    if fda_df.empty:
+        st.markdown('<div class="empty-state">// no FDA documents yet</div>', unsafe_allow_html=True)
     else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            render_card(row, key=f"reg{i}")
+        c1, c2 = st.columns([3,1])
+        q  = c1.text_input("", placeholder="drug name, indication, doc type…", key="fda_q", label_visibility="collapsed")
+        pf = c2.selectbox("", ["All","High","Medium","Low"], key="fda_p", label_visibility="collapsed")
+        f  = filter_df(fda_df, q, pf)
+        st.markdown(f'<div class="section-label">FDA Documents ({len(f)})</div>', unsafe_allow_html=True)
+        for _, r in f.iterrows(): render_card(r)
 
-# ══════════════════════════════════════════════════════════════
-# NEWS
-# ══════════════════════════════════════════════════════════════
-with tab_nws:
-    st.markdown('<div class="sec-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
-    df_f = sort_df(filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri))
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    group = st.toggle("Group by source", value=False)
-    if df_f.empty:
-        st.markdown('<div class="empty">No items match your filters.</div>', unsafe_allow_html=True)
-    elif group and "Source" in df_f.columns:
-        for src in df_f["Source"].unique():
-            sdf = df_f[df_f["Source"]==src]
-            with st.expander(f"{src} — {len(sdf)} items"):
-                for i, (_, row) in enumerate(sdf.iterrows()):
-                    render_card(row, key=f"nsrc{hash(src)}{i}", show_save=True)
+# EMA
+with t_ema:
+    ema_df = df_docs[df_docs["Source"].str.upper() == "EMA"] if not df_docs.empty and "Source" in df_docs.columns else pd.DataFrame()
+    if ema_df.empty:
+        st.markdown('<div class="empty-state">// no EMA documents yet</div>', unsafe_allow_html=True)
     else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            render_card(row, key=f"nws{i}")
+        c1, c2 = st.columns([3,1])
+        q  = c1.text_input("", placeholder="medicine name, EPAR, indication…", key="ema_q", label_visibility="collapsed")
+        pf = c2.selectbox("", ["All","High","Medium","Low"], key="ema_p", label_visibility="collapsed")
+        f  = filter_df(ema_df, q, pf)
+        st.markdown(f'<div class="section-label">EMA Documents ({len(f)})</div>', unsafe_allow_html=True)
+        for _, r in f.iterrows(): render_card(r)
 
-# ══════════════════════════════════════════════════════════════
-# COMPETITORS
-# ══════════════════════════════════════════════════════════════
-with tab_cmp:
-    st.markdown('<div class="sec-hdr">Competitive Intelligence</div>', unsafe_allow_html=True)
-    df_f = df_comp.copy()
-    if search_q and not df_f.empty:
-        q = search_q.lower()
-        df_f = df_f[df_f.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    if df_f.empty:
-        st.markdown('<div class="empty">No competitor intelligence available.</div>', unsafe_allow_html=True)
+# ICH
+with t_ich:
+    ich_df = df_docs[df_docs["Source"].str.upper() == "ICH"] if not df_docs.empty and "Source" in df_docs.columns else pd.DataFrame()
+    if ich_df.empty:
+        st.markdown('<div class="empty-state">// no ICH guidelines yet</div>', unsafe_allow_html=True)
     else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            title   = clean(row.get("Title",    ""), 200) or "Untitled"
-            url     = str(row.get("URL",        "")).strip()
-            summary = clean(row.get("Summary",  ""), 400)
-            company = clean(row.get("Company",  ""), 60)
-            cat     = clean(row.get("Category", ""), 60)
-            src     = clean(row.get("Source",   ""), 60)
-            dt      = clean(row.get("Date", row.get("Run Date", "")), 16)
-            notes   = clean(row.get("Notes",    ""), 600)
-            ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-            tags    = ""
-            if company: tags += f'<span class="tag tag-gold">{company}</span>'
-            if cat:     tags += f' <span class="tag">{cat}</span>'
-            if src:     tags += f' <span class="tag">{src}</span>'
-            st.markdown(f"""<div class="card card-na">
-  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{dt or "—"}</span></div>
-  <div class="card-sum">{summary or "No summary."}</div>
-  <div class="card-tags">{tags}</div>
-</div>""", unsafe_allow_html=True)
-            if notes:
-                with st.expander("Details"): st.write(notes)
+        q = st.text_input("", placeholder="guideline code, topic…", key="ich_q", label_visibility="collapsed")
+        f = filter_df(ich_df, q)
+        st.markdown(f'<div class="section-label">ICH Guidelines ({len(f)})</div>', unsafe_allow_html=True)
+        for _, r in f.iterrows(): render_card(r)
 
-# ══════════════════════════════════════════════════════════════
-# CHANGES — document update alerts
-# ══════════════════════════════════════════════════════════════
-with tab_chg_t:
-    st.markdown('<div class="sec-hdr">⚠️ Document Changes</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sec-count" style="margin-bottom:14px;">Documents that were updated after initial publication — labels, guidelines, approvals revised.</div>', unsafe_allow_html=True)
-
+# CHANGES
+with t_chg:
     if df_chg.empty:
-        st.markdown('<div class="empty">No document changes detected yet.<br><span style="font-size:11px;">Changes appear here when the scanner finds updated content in a previously tracked document.</span></div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">// no changes detected yet —<br>changes appear here when documents are updated between scans</div>', unsafe_allow_html=True)
     else:
-        # Filter controls
-        chg_search = st.text_input("", placeholder="Filter changes…", key="chg_search", label_visibility="collapsed")
-        df_cf = df_chg.copy()
-        if chg_search:
-            q = chg_search.lower()
-            df_cf = df_cf[df_cf.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
-        if sel_ha:
-            col = "Health Authority" if "Health Authority" in df_cf.columns else "Source"
-            if col in df_cf.columns:
-                df_cf = df_cf[df_cf[col].fillna("").str.contains("|".join(sel_ha), case=False)]
+        st.markdown(f'<div class="section-label">⚡ All detected changes ({n_chg})</div>', unsafe_allow_html=True)
+        for _, r in df_chg.iterrows(): render_card(r)
 
-        # Sort by change date, newest first
-        if "Change Detected Date" in df_cf.columns:
-            df_cf["_chg_sort"] = pd.to_datetime(df_cf["Change Detected Date"].fillna(""), errors="coerce")
-            df_cf = df_cf.sort_values("_chg_sort", ascending=False).drop(columns=["_chg_sort"])
+# NEWS
+with t_news:
+    if df_news.empty:
+        st.markdown('<div class="empty-state">// no news yet</div>', unsafe_allow_html=True)
+    else:
+        c1, c2 = st.columns([3,1])
+        q   = c1.text_input("", placeholder="drug, company, topic…", key="nq", label_visibility="collapsed")
+        pf  = c2.selectbox("", ["All","High","Medium","Low"], key="np", label_visibility="collapsed")
+        f   = filter_df(df_news, q, pf)
+        st.markdown(f'<div class="section-label">News ({len(f)})</div>', unsafe_allow_html=True)
+        for _, r in f.iterrows(): render_card(news_to_card(r))
 
-        st.markdown(f'<div class="sec-count">{len(df_cf)} change(s)</div>', unsafe_allow_html=True)
-
-        for i, (_, row) in enumerate(df_cf.iterrows()):
-            render_card(row, key=f"chg{i}", show_save=True, show_change_badge=True)
-
-# ══════════════════════════════════════════════════════════════
 # SEARCH
-# ══════════════════════════════════════════════════════════════
-with tab_srch:
-    st.markdown('<div class="sec-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
-    q = st.text_input("", placeholder="Search across all data…", key="srch_input", label_visibility="collapsed")
+with t_search:
+    q = st.text_input("", placeholder="search everything — drug name, guideline, therapeutic area, keyword…", key="gq", label_visibility="collapsed")
     if q:
-        r_u = filter_df(df_upd,  q)
-        r_n = filter_df(df_news, q)
-        r_c = filter_df(df_comp, q)
-        r_ch = filter_df(df_chg, q)
-        total = len(r_u) + len(r_n) + len(r_c) + len(r_ch)
-        st.markdown(f'<div class="sec-count">{total} results for <strong>{q}</strong></div>', unsafe_allow_html=True)
-        lbl = lambda t: f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin:18px 0 8px;">{t}</div>'
-        if not r_u.empty:
-            st.markdown(lbl("Regulatory"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_u.iterrows()): render_card(row, f"sru{i}")
-        if not r_n.empty:
-            st.markdown(lbl("News"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
-        if not r_ch.empty:
-            st.markdown(lbl("Changes"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_ch.iterrows()): render_card(row, f"srch{i}", show_change_badge=True)
-        if not r_c.empty:
-            st.markdown(lbl("Competitors"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_c.iterrows()): render_card(row, f"src{i}", show_save=False)
-        if total == 0:
-            st.markdown('<div class="empty">No results found.</div>', unsafe_allow_html=True)
+        results = []
+        for df, kind in [(df_docs,"doc"),(df_news,"news"),(df_chg,"change")]:
+            if df.empty: continue
+            mask = df.apply(lambda r: q.lower() in str(r.values).lower(), axis=1)
+            m = df[mask].copy(); m["_kind"] = kind
+            results.append(m)
+        if results:
+            combined = pd.concat(results, ignore_index=True)
+            st.markdown(f'<div class="section-label">Found {len(combined)} results for "{q}"</div>', unsafe_allow_html=True)
+            for _, r in combined.iterrows():
+                render_card(news_to_card(r) if r.get("_kind") == "news" else r)
+        else:
+            st.markdown(f'<div class="empty-state">// no results for "{q}"</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div style="color:#bbb;text-align:center;padding:40px;font-size:12.5px;">Type to search all intelligence.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty-state">// type above to search all documents, news and changes</div>', unsafe_allow_html=True)
 
-# ══════════════════════════════════════════════════════════════
 # FAVORITES
-# ══════════════════════════════════════════════════════════════
-with tab_fav:
-    st.markdown('<div class="sec-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
-    st.session_state.setdefault("removed_favs", set())
-    st.session_state.setdefault("saved_favs",   set())
-    st.session_state.setdefault("pending_favs", [])
-
-    df_fav = load_tab("Favorites")
-    if not df_fav.empty and "Title" in df_fav.columns:
-        df_fav = df_fav[~df_fav["Title"].isin(st.session_state["removed_favs"])]
-    if st.session_state["pending_favs"]:
-        exist = set(df_fav["Title"].tolist()) if not df_fav.empty else set()
-        new   = [p for p in st.session_state["pending_favs"] if p["Title"] not in exist]
-        if new:
-            df_fav = pd.concat([df_fav, pd.DataFrame(new)], ignore_index=True) if not df_fav.empty else pd.DataFrame(new)
-
-    if df_fav.empty:
-        st.markdown('<div class="empty">No favorites yet. Click ☆ Save on any item.</div>', unsafe_allow_html=True)
+with t_favs:
+    if df_favs.empty:
+        st.markdown('<div class="empty-state">// no favorites saved yet</div>', unsafe_allow_html=True)
     else:
-        st.markdown(f'<div class="sec-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
-        for i, (_, row) in enumerate(df_fav.iloc[::-1].iterrows()):
-            title   = clean(row.get("Title",   ""), 200) or "Untitled"
-            url     = str(row.get("URL",       "")).strip()
-            pdf_url = str(row.get("PDF URL",   "")).strip()
-            summary = clean(row.get("AI Summary", row.get("Summary", "")), 400)
-            pri     = str(row.get("Priority",  "")).strip()
-            ta      = clean(row.get("Therapeutic Area", ""), 60)
-            pub     = clean(row.get("Published Date", row.get("Saved At", "")), 16)
-            src     = clean(row.get("Source",  ""), 60)
-            pc      = pclass(pri)
-            ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-            tags    = pbadge(pri)
-            if ta  and ta  not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
-            if src and src not in ("-",): tags += f' <span class="tag">{src}</span>'
-            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
-            st.markdown(f"""<div class="card card-{pc}">
-  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{pub or "—"}</span></div>
-  <div class="card-sum">{summary or "No summary."}</div>
-  <div class="card-tags">{tags}{pdf_badge}</div>
-</div>""", unsafe_allow_html=True)
-            if st.button("🗑 Remove", key=f"del{i}"):
-                st.session_state["removed_favs"].add(title)
-                st.session_state["saved_favs"].discard(title)
-                st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
-                def _del(t, sname, sec):
-                    try:
-                        c2 = Credentials.from_service_account_info(sec, scopes=SCOPES)
-                        ws2 = gspread.authorize(c2).open(sname).worksheet("Favorites")
-                        rows = ws2.get_all_values()
-                        for rn,r in enumerate(rows[1:],2):
-                            if r and r[0]==t: ws2.delete_rows(rn); break
-                    except Exception: pass
-                threading.Thread(target=_del, args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
-                st.rerun()
+        active = df_favs[df_favs.get("Deleted", pd.Series([""] * len(df_favs))).astype(str).str.lower() != "yes"] if not df_favs.empty else df_favs
+        st.markdown(f'<div class="section-label">Saved items ({len(active)})</div>', unsafe_allow_html=True)
+        for _, r in active.iterrows():
+            render_card({
+                "Title": r.get("Title",""), "URL": r.get("URL",""),
+                "PDF URL": r.get("PDF URL",""), "Source": r.get("Source",""),
+                "Doc Type": "", "Published Date": r.get("Published Date",""),
+                "Last Modified": "", "Last Scan": r.get("Saved At",""),
+                "AI Summary": r.get("AI Summary",""), "What Changed": "",
+                "Implications": "", "Action Items": "",
+                "Priority": r.get("Priority","Medium"),
+            })
 
-# ══════════════════════════════════════════════════════════════
-# ARCHIVE
-# ══════════════════════════════════════════════════════════════
-with tab_arc_t:
-    st.markdown('<div class="sec-hdr">Archive</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="arc-note">📦 {len(df_arc) if not df_arc.empty else 0} items · older than 7 days</div>', unsafe_allow_html=True)
-    if df_arc.empty:
-        st.markdown('<div class="empty">Archive is empty.</div>', unsafe_allow_html=True)
-    else:
-        aq = st.text_input("", placeholder="Search archive…", key="arc_q", label_visibility="collapsed")
-        df_af = filter_df(df_arc, aq)
-        st.markdown(f'<div class="sec-count">{len(df_af)} items</div>', unsafe_allow_html=True)
-        for i, (_, row) in enumerate(df_af.iterrows()):
-            render_card(row, key=f"arc{i}", show_save=True)
+# SIDEBAR
+with st.sidebar:
+    st.markdown("### ⚗️ Intelligence")
+    st.markdown("---")
+    if not df_docs.empty and "Therapeutic Area" in df_docs.columns:
+        areas = ["All"] + sorted(df_docs["Therapeutic Area"].dropna().unique().tolist())
+        st.selectbox("Therapeutic Area", areas, key="sb_ta")
+    if not df_docs.empty and "Health Authority" in df_docs.columns:
+        auths = ["All"] + sorted(df_docs["Health Authority"].dropna().unique().tolist())
+        st.selectbox("Health Authority", auths, key="sb_ha")
+    st.markdown("---")
+    st.markdown("### 📊 Snapshot")
+    total_high = len(high_docs) + n_chg + len(high_news)
+    st.markdown(f"""
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:0.7rem;line-height:2.2;">
+    <span style="color:#ef4444">🔴 HIGH</span> &nbsp;&nbsp;&nbsp;{total_high}<br>
+    <span style="color:#f59e0b">🟡 MEDIUM</span> &nbsp;{len(med_docs)}<br>
+    <span style="color:#10b981">🟢 LOW</span> &nbsp;&nbsp;&nbsp;{len(fp(df_docs,"Low"))}<br>
+    <span style="color:#3b82f6">📰 NEWS</span> &nbsp;&nbsp;&nbsp;{len(df_news)}<br>
+    <span style="color:#f87171">⚡ CHANGED</span> {n_chg}
+    </div>""", unsafe_allow_html=True)
+    st.markdown("---")
+    if st.button("🔄 Refresh", use_container_width=True):
+        st.cache_data.clear(); st.rerun()
+    st.markdown(f'<div style="font-size:0.62rem;color:#1e2d40;font-family:\'IBM Plex Mono\',monospace;margin-top:6px">updated {datetime.datetime.now().strftime("%H:%M:%S")}</div>', unsafe_allow_html=True)
