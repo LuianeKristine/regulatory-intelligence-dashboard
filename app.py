@@ -203,7 +203,11 @@ def load_tab(tab_name):
         if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
             df = df[df["Deleted"].fillna("") != "deleted"]
         return df
+    except gspread.exceptions.WorksheetNotFound:
+        return pd.DataFrame()
     except Exception as e:
+        if tab_name in ("Changes",):
+            return pd.DataFrame()
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
 
