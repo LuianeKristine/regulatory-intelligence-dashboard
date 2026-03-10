@@ -37,6 +37,9 @@ st.markdown("""
   --low: #166534;
   --low-bg: #f0fdf4;
   --low-bd: #bbf7d0;
+  --chg: #1d4ed8;
+  --chg-bg: #eff6ff;
+  --chg-bd: #bfdbfe;
   --r: 7px;
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -96,19 +99,27 @@ section[data-testid="stSidebar"] .stButton > button {
 .card-medium::before { background:#d97706; }
 .card-low::before    { background:#16a34a; }
 .card-na::before     { background:var(--border); }
+.card-changed::before { background:var(--chg); }
 .card-hdr { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:5px; }
 .card-ttl { font-size:13px; font-weight:500; color:var(--text-1); line-height:1.45; }
 .card-ttl a { color:var(--text-1); text-decoration:none; }
 .card-ttl a:hover { color:#2563eb; }
 .card-dt  { font-family:'JetBrains Mono',monospace; font-size:10px; color:var(--text-3); white-space:nowrap; flex-shrink:0; padding-top:1px; }
-.card-sum { font-size:12px; color:var(--text-2); line-height:1.6; margin-bottom:10px; }
-.card-tags { display:flex; flex-wrap:wrap; gap:3px; }
+.card-sum { font-size:12px; color:var(--text-2); line-height:1.6; margin-bottom:8px; }
+.card-raw { font-size:11px; color:var(--text-3); line-height:1.55; margin-bottom:8px; font-style:italic; border-left:2px solid var(--border); padding-left:8px; }
+.card-tags { display:flex; flex-wrap:wrap; gap:3px; align-items:center; }
+.card-pdf  { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; padding:2px 7px; border-radius:4px; background:#fef2f2; color:#991b1b; border:1px solid #fecaca; text-decoration:none; }
+.card-pdf:hover { background:#fee2e2; }
 
 .tag { font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:500; padding:2px 6px; border-radius:4px; border:1px solid var(--border); background:var(--surface-2); color:var(--text-2); }
 .tag-gold { background:var(--gold-bg); color:var(--gold); border-color:var(--gold-bd); }
+.tag-chg  { background:var(--chg-bg);  color:var(--chg);  border-color:var(--chg-bd); }
 .badge-high { background:var(--high-bg); color:var(--high); border:1px solid var(--high-bd); padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
 .badge-med  { background:var(--med-bg);  color:var(--med);  border:1px solid var(--med-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
 .badge-low  { background:var(--low-bg);  color:var(--low);  border:1px solid var(--low-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+.badge-chg  { background:var(--chg-bg);  color:var(--chg);  border:1px solid var(--chg-bd);  padding:2px 6px; border-radius:4px; font-size:10px; font-weight:600; font-family:'JetBrains Mono',monospace; }
+
+.chg-banner { background:var(--chg-bg); border:1px solid var(--chg-bd); border-radius:var(--r); padding:10px 14px; margin-bottom:14px; font-size:12px; color:var(--chg); display:flex; align-items:center; gap:8px; }
 
 .hgrid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; align-items:start; width:100%; overflow:hidden; }
 .hcol  { min-width:0; overflow:hidden; }
@@ -148,7 +159,6 @@ details summary { font-size:11px !important; color:var(--text-3) !important; cur
 
 #MainMenu, footer, header { visibility:hidden; }
 
-/* ── HIDE ALL SIDEBAR TOGGLE BUTTONS ── */
 [data-testid="collapsedControl"],
 [data-testid="stSidebarCollapseButton"],
 [data-testid="stSidebarNavCollapseButton"],
@@ -160,7 +170,6 @@ section[data-testid="stSidebar"] > div > button { display:none !important; }
 .st-emotion-cache-1egp75f, .eyeqlp52,
 div[data-testid="collapsedControl"] { display:none !important; }
 
-/* ── MOBILE ── */
 @media (max-width: 768px) {
   .hgrid { grid-template-columns: 1fr !important; }
   .block-container { padding: .8rem !important; }
@@ -246,9 +255,7 @@ def filter_df(df, search="", ha_f=None, ta_f=None, pri_f=None):
     return df
 
 def sort_df(df):
-    """Sort: HIGH first, then by date descending."""
     if df.empty: return df
-    # Priority order
     pri_order = {"high": 0, "medium": 1, "low": 2, "": 3}
     if "Priority" in df.columns:
         df = df.copy()
@@ -259,7 +266,6 @@ def sort_df(df):
         df = df.copy()
         df["_pri_sort"] = 3
 
-    # Date sort — try Published Date, fallback to Date
     date_col = "Published Date" if "Published Date" in df.columns else ("Date" if "Date" in df.columns else None)
     if date_col:
         df["_date_sort"] = pd.to_datetime(df[date_col].fillna(""), errors="coerce")
@@ -270,29 +276,44 @@ def sort_df(df):
         df = df.drop(columns=["_pri_sort"])
     return df
 
-def render_card(row, key, show_save=True):
-    title   = clean(row.get("Title",   ""), 200) or "Untitled"
-    url     = str(row.get("URL", "")).strip()
-    summary = clean(row.get("AI Summary", row.get("Summary", "")), 400)
-    pri     = str(row.get("Priority", "")).strip()
-    pub     = clean(row.get("Published Date", row.get("Date", "")), 16)
-    src     = clean(row.get("Source", ""), 60)
-    ta      = clean(row.get("Therapeutic Area", ""), 60)
-    impl    = clean(row.get("Implications", ""), 600)
-    actions = clean(row.get("Action Items",  ""), 600)
+def render_card(row, key, show_save=True, show_change_badge=False):
+    title    = clean(row.get("Title",   ""), 200) or "Untitled"
+    url      = str(row.get("URL", "")).strip()
+    pdf_url  = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
+    summary  = clean(row.get("AI Summary", row.get("Summary", "")), 400)
+    raw_exc  = clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300)
+    pri      = str(row.get("Priority", "")).strip()
+    pub      = clean(row.get("Published Date", row.get("Date", "")), 16)
+    src      = clean(row.get("Source", ""), 60)
+    ta       = clean(row.get("Therapeutic Area", ""), 60)
+    impl     = clean(row.get("Implications", ""), 600)
+    actions  = clean(row.get("Action Items",  ""), 600)
+    chg_date = clean(row.get("Change Detected Date", ""), 16)
 
-    pc  = pclass(pri)
-    ttl = f'<a href="{url}" target="_blank">{title}</a>' if url else title
+    pc   = pclass(pri)
+    card_class = "card-changed" if show_change_badge else f"card-{pc}"
+    ttl  = f'<a href="{url}" target="_blank">{title}</a>' if url else title
     tags = build_tags(row)
 
+    # PDF link badge
+    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
+
+    # Change badge
+    chg_badge = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
+                f' <span class="badge-chg">UPDATED</span>' if show_change_badge else "")
+
+    # Raw excerpt block (shown only if present)
+    raw_block = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
+
     st.markdown(f"""
-    <div class="card card-{pc}">
+    <div class="card {card_class}">
       <div class="card-hdr">
         <div class="card-ttl">{ttl}</div>
         <span class="card-dt">{pub or "—"}</span>
       </div>
       <div class="card-sum">{summary or "No summary available."}</div>
-      <div class="card-tags">{tags}</div>
+      {raw_block}
+      <div class="card-tags">{tags}{pdf_badge}{chg_badge}</div>
     </div>""", unsafe_allow_html=True)
 
     if impl or actions:
@@ -305,20 +326,20 @@ def render_card(row, key, show_save=True):
         if st.button("⭐ Saved" if already else "☆ Save", key=f"sav_{key}", disabled=already):
             st.session_state.setdefault("saved_favs",   set()).add(title)
             st.session_state.setdefault("pending_favs", []).append({
-                "Title": title, "URL": url, "Source": src,
+                "Title": title, "URL": url, "PDF URL": pdf_url, "Source": src,
                 "Published Date": pub, "Priority": pri,
                 "Therapeutic Area": ta, "AI Summary": summary,
                 "Saved At": datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
                 "Deleted": "",
             })
-            def _write(t, u, s, p, pr, ta_, sm, dt, sname, sec):
+            def _write(t, u, pu, s, p, pr, ta_, sm, dt, sname, sec):
                 try:
                     c2 = Credentials.from_service_account_info(sec, scopes=SCOPES)
                     gspread.authorize(c2).open(sname).worksheet("Favorites").append_row(
-                        [t, u, s, p, pr, ta_, sm, dt, ""])
+                        [t, u, pu, s, p, pr, ta_, sm, dt, ""])
                 except Exception: pass
             threading.Thread(target=_write, args=(
-                title, url, src, pub, pri, ta, summary,
+                title, url, pdf_url, src, pub, pri, ta, summary,
                 datetime.now(timezone(timedelta(hours=-3))).strftime("%Y-%m-%d %H:%M"),
                 SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
             st.rerun()
@@ -350,18 +371,22 @@ with st.spinner("Loading…"):
     df_news = load_tab("News")
     df_comp = load_tab("Competitors")
     df_arc  = load_tab("Archive")
+    df_chg  = load_tab("Changes")   # ← new: document change alerts
 
-tab_home, tab_reg, tab_nws, tab_cmp, tab_srch, tab_arc_t, tab_fav = st.tabs([
-    "Home", "Regulatory", "News", "Competitors", "Search", "Archive", "⭐ Favorites"
+tab_home, tab_reg, tab_nws, tab_cmp, tab_chg_t, tab_srch, tab_arc_t, tab_fav = st.tabs([
+    "Home", "Regulatory", "News", "Competitors",
+    f"⚠️ Changes{f' ({len(df_chg)})' if not df_chg.empty else ''}",
+    "Search", "Archive", "⭐ Favorites"
 ])
 
 # ══════════════════════════════════════════════════════════════
-# HOME — pure HTML, no Streamlit widgets
+# HOME
 # ══════════════════════════════════════════════════════════════
 with tab_home:
     def hcard(row):
         title   = clean(row.get("Title", ""), 150) or "Untitled"
         url     = str(row.get("URL", "")).strip()
+        pdf_url = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
         summary = clean(row.get("AI Summary", row.get("Summary", "")), 150)
         pri     = str(row.get("Priority", "")).strip()
         pub     = clean(row.get("Published Date", row.get("Date", "")), 16)
@@ -371,13 +396,14 @@ with tab_home:
         pc      = pclass(pri)
         ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
         tags = pbadge(pri)
-        if ta  and ta  not in ("-",):            tags += f' <span class="tag tag-gold">{ta}</span>'
+        if ta  and ta  not in ("-",):             tags += f' <span class="tag tag-gold">{ta}</span>'
         if ha  and ha  not in ("-",) and ha!=src: tags += f' <span class="tag">{ha}</span>'
-        if src and src not in ("-",):            tags += f' <span class="tag">{src}</span>'
+        if src and src not in ("-",):             tags += f' <span class="tag">{src}</span>'
+        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
         return f"""<div class="hcard hcard-{pc}">
   <div class="hcard-ttl">{ttl}</div>
   <div class="hcard-sum">{summary}</div>
-  <div class="hcard-foot"><span class="hcard-dt">{pub}</span>{tags}</div>
+  <div class="hcard-foot"><span class="hcard-dt">{pub}</span>{tags}{pdf_badge}</div>
 </div>"""
 
     def col_html(df_):
@@ -390,6 +416,10 @@ with tab_home:
         if not df_.empty and "Priority" in df_.columns:
             high_parts.append(df_[df_["Priority"].fillna("").str.strip().str.lower()=="high"])
     df_high = pd.concat(high_parts) if high_parts else pd.DataFrame()
+
+    # Changes alert in home
+    if not df_chg.empty:
+        st.markdown(f'<div class="chg-banner">⚠️ <strong>{len(df_chg)} document(s) were updated</strong> since last scan — check the Changes tab for details.</div>', unsafe_allow_html=True)
 
     st.markdown(f"""<div class="hgrid">
   <div class="hcol">
@@ -475,6 +505,37 @@ with tab_cmp:
                 with st.expander("Details"): st.write(notes)
 
 # ══════════════════════════════════════════════════════════════
+# CHANGES — document update alerts
+# ══════════════════════════════════════════════════════════════
+with tab_chg_t:
+    st.markdown('<div class="sec-hdr">⚠️ Document Changes</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-count" style="margin-bottom:14px;">Documents that were updated after initial publication — labels, guidelines, approvals revised.</div>', unsafe_allow_html=True)
+
+    if df_chg.empty:
+        st.markdown('<div class="empty">No document changes detected yet.<br><span style="font-size:11px;">Changes appear here when the scanner finds updated content in a previously tracked document.</span></div>', unsafe_allow_html=True)
+    else:
+        # Filter controls
+        chg_search = st.text_input("", placeholder="Filter changes…", key="chg_search", label_visibility="collapsed")
+        df_cf = df_chg.copy()
+        if chg_search:
+            q = chg_search.lower()
+            df_cf = df_cf[df_cf.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
+        if sel_ha:
+            col = "Health Authority" if "Health Authority" in df_cf.columns else "Source"
+            if col in df_cf.columns:
+                df_cf = df_cf[df_cf[col].fillna("").str.contains("|".join(sel_ha), case=False)]
+
+        # Sort by change date, newest first
+        if "Change Detected Date" in df_cf.columns:
+            df_cf["_chg_sort"] = pd.to_datetime(df_cf["Change Detected Date"].fillna(""), errors="coerce")
+            df_cf = df_cf.sort_values("_chg_sort", ascending=False).drop(columns=["_chg_sort"])
+
+        st.markdown(f'<div class="sec-count">{len(df_cf)} change(s)</div>', unsafe_allow_html=True)
+
+        for i, (_, row) in enumerate(df_cf.iterrows()):
+            render_card(row, key=f"chg{i}", show_save=True, show_change_badge=True)
+
+# ══════════════════════════════════════════════════════════════
 # SEARCH
 # ══════════════════════════════════════════════════════════════
 with tab_srch:
@@ -484,7 +545,8 @@ with tab_srch:
         r_u = filter_df(df_upd,  q)
         r_n = filter_df(df_news, q)
         r_c = filter_df(df_comp, q)
-        total = len(r_u) + len(r_n) + len(r_c)
+        r_ch = filter_df(df_chg, q)
+        total = len(r_u) + len(r_n) + len(r_c) + len(r_ch)
         st.markdown(f'<div class="sec-count">{total} results for <strong>{q}</strong></div>', unsafe_allow_html=True)
         lbl = lambda t: f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin:18px 0 8px;">{t}</div>'
         if not r_u.empty:
@@ -493,6 +555,9 @@ with tab_srch:
         if not r_n.empty:
             st.markdown(lbl("News"), unsafe_allow_html=True)
             for i,(_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
+        if not r_ch.empty:
+            st.markdown(lbl("Changes"), unsafe_allow_html=True)
+            for i,(_, row) in enumerate(r_ch.iterrows()): render_card(row, f"srch{i}", show_change_badge=True)
         if not r_c.empty:
             st.markdown(lbl("Competitors"), unsafe_allow_html=True)
             for i,(_, row) in enumerate(r_c.iterrows()): render_card(row, f"src{i}", show_save=False)
@@ -526,6 +591,7 @@ with tab_fav:
         for i, (_, row) in enumerate(df_fav.iloc[::-1].iterrows()):
             title   = clean(row.get("Title",   ""), 200) or "Untitled"
             url     = str(row.get("URL",       "")).strip()
+            pdf_url = str(row.get("PDF URL",   "")).strip()
             summary = clean(row.get("AI Summary", row.get("Summary", "")), 400)
             pri     = str(row.get("Priority",  "")).strip()
             ta      = clean(row.get("Therapeutic Area", ""), 60)
@@ -536,10 +602,11 @@ with tab_fav:
             tags    = pbadge(pri)
             if ta  and ta  not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             if src and src not in ("-",): tags += f' <span class="tag">{src}</span>'
+            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
             st.markdown(f"""<div class="card card-{pc}">
   <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{pub or "—"}</span></div>
   <div class="card-sum">{summary or "No summary."}</div>
-  <div class="card-tags">{tags}</div>
+  <div class="card-tags">{tags}{pdf_badge}</div>
 </div>""", unsafe_allow_html=True)
             if st.button("🗑 Remove", key=f"del{i}"):
                 st.session_state["removed_favs"].add(title)
