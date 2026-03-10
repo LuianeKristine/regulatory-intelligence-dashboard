@@ -421,20 +421,20 @@ with tab_home:
     if not df_chg.empty:
         st.markdown(f'<div class="chg-banner">\u26a0\ufe0f <strong>{len(df_chg)} document(s) were updated</strong> since last scan \u2014 check the Changes tab for details.</div>', unsafe_allow_html=True)
 
-    st.markdown(f"""<div class="hgrid">
-  <div class="hcol">
-    <div class="hcol-hdr">\ud83d\udea8 High Priority</div>
-    <div class="hcol-scroll">{col_html(df_high)}</div>
-  </div>
-  <div class="hcol">
-    <div class="hcol-hdr">Regulatory Updates</div>
-    <div class="hcol-scroll">{col_html(df_upd)}</div>
-  </div>
-  <div class="hcol">
-    <div class="hcol-hdr">Latest News</div>
-    <div class="hcol-scroll">{col_html(df_news)}</div>
-  </div>
-</div>""", unsafe_allow_html=True)
+    high_html  = col_html(df_high)
+    upd_html   = col_html(df_upd)
+    news_html  = col_html(df_news)
+    hgrid_html = (
+        '<div class="hgrid">'
+        '<div class="hcol"><div class="hcol-hdr">High Priority</div>'
+        '<div class="hcol-scroll">' + high_html + '</div></div>'
+        '<div class="hcol"><div class="hcol-hdr">Regulatory Updates</div>'
+        '<div class="hcol-scroll">' + upd_html + '</div></div>'
+        '<div class="hcol"><div class="hcol-hdr">Latest News</div>'
+        '<div class="hcol-scroll">' + news_html + '</div></div>'
+        '</div>'
+    )
+    st.markdown(hgrid_html, unsafe_allow_html=True)
 
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 # REGULATORY
