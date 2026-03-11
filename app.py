@@ -198,8 +198,22 @@ def load_tab(tab_name):
     try:
         gc = get_client()
         ws = gc.open(SHEET_NAME).worksheet(tab_name)
-        data = ws.get_all_records()
-        df = pd.DataFrame(data) if data else pd.DataFrame()
+        raw = ws.get_all_values()
+        if not raw:
+            return pd.DataFrame()
+        headers = raw[0]
+        seen_h = {}
+        clean_h = []
+        for h in headers:
+            h = str(h).strip() or "col"
+            if h in seen_h:
+                seen_h[h] += 1
+                clean_h.append(f"{h}_{seen_h[h]}")
+            else:
+                seen_h[h] = 0
+                clean_h.append(h)
+        rows = raw[1:]
+        df = pd.DataFrame(rows, columns=clean_h) if rows else pd.DataFrame(columns=clean_h)
         if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
             df = df[df["Deleted"].fillna("") != "deleted"]
         return df
@@ -211,11 +225,55 @@ def load_tab(tab_name):
 def clean(text, max_len=400):
     t = str(text or "")
     t = re.sub(r'<[^>]+>', ' ', t)
-    t = re.sub(r'!\\[.*?\\]\\(.*?\\)', '', t)
-    t = re.sub(r'\\[([^\\]]+)\\]\\([^\\)]+\\)', r'\\1', t)
+    t = re.sub(r'!\[.*?\]\(.*?\)', '', t)
+    t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
     t = re.sub(r'[#*_`>~]+', '', t)
-    t = re.sub(r'\\s+', ' ', t).strip()
+    t = re.sub(r'\s+', ' ', t).strip()
     return (t[:max_len] + "\u2026") if len(t) > max_len else t
+
+# ── RELEVANCE FILTER ──────────────────────────────────────────────────────────
+IRRELEVANT_RE = re.compile(
+    r"search[- ]for\b|/search\?|search_api|views_fulltext|items_per_page|"
+    r"\bsearch\s+results\b|search\s+fda\b|"
+    r"drug[- ]trials?[- ]snapshot|trials?\s+snapshot|"
+    r"meeting[- ]minute|meeting\s+highlight|committee[- ]roster|staff[- ]list|"
+    r"\bagenda\b|advisory\s+committee\s+meeting|"
+    r"data[- ]file|glossar|\bfaq\b|frequently[- ]asked|"
+    r"\bcontact\b|\babout[- ]us\b|how[- ]to[- ]submit|subscribe|newsletter|"
+    r"\bsitemap\b|\bprivacy\b|\bdisclaimer\b",
+    re.IGNORECASE
+)
+
+RELEVANT_RE = re.compile(
+    r"approv|authoris|authoriz|new\s+drug|new\s+treatment|new\s+therapy|indication|"
+    r"label\s+change|label\s+update|prescribing|safety\s+alert|recall|withdrawn|"
+    r"EPAR|NDA|BLA|sNDA|sBLA|guideline|guidance|"
+    r"cell\s+therapy|gene\s+therapy|CAR-T|CRISPR|AAV|ATMP|"
+    r"oncol|cancer|tumor|lymphoma|leukemia|autoimmune|rheumatoid|lupus|sclerosis|"
+    r"rare\s+disease|orphan|biologic|biosimilar|immunotherapy",
+    re.IGNORECASE
+)
+
+def is_relevant(row):
+    title = str(row.get("Title","")).strip()
+    url   = str(row.get("URL","")).strip()
+    src   = str(row.get("Source","")).strip().upper()
+    if len(title) < 5:              return False
+    if IRRELEVANT_RE.search(title): return False
+    if IRRELEVANT_RE.search(url):   return False
+    # For ICH and EMA EPARs: always relevant (curated list)
+    if src in ("ICH", "EMA"):       return True
+    # For FDA and News: must match relevant terms
+    if not RELEVANT_RE.search(title + " " + str(row.get("AI Summary",""))):
+        return False
+    return True
+
+def filter_relevant(df):
+    if df is None or df.empty: return df
+    df = df[df.apply(is_relevant, axis=1)]
+    if "Title" in df.columns:
+        df = df.drop_duplicates(subset=["Title"], keep="first")
+    return df
 
 def pclass(p):
     p = str(p).strip().lower()
@@ -240,16 +298,18 @@ def build_tags(row):
     return out
 
 def filter_df(df, search="", ha_f=None, ta_f=None, pri_f=None):
-    if df.empty: return df
+    if df is None or df.empty: return df
     if search:
         q = search.lower()
         df = df[df.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
     if ha_f:
         col = "Health Authority" if "Health Authority" in df.columns else "Source"
         if col in df.columns:
-            df = df[df[col].fillna("").str.contains("|".join(ha_f), case=False)]
+            pat = "|".join(re.escape(h) for h in ha_f)
+            df = df[df[col].fillna("").str.contains(pat, case=False)]
     if ta_f and "Therapeutic Area" in df.columns:
-        df = df[df["Therapeutic Area"].fillna("").str.contains("|".join(ta_f), case=False)]
+        pat = "|".join(re.escape(t) for t in ta_f)
+        df = df[df["Therapeutic Area"].fillna("").str.contains(pat, case=False)]
     if pri_f and "Priority" in df.columns:
         df = df[df["Priority"].fillna("").str.lower().isin([p.lower() for p in pri_f])]
     return df
@@ -374,11 +434,11 @@ st.markdown(f"""<div class="topbar">
 
 # \u2500\u2500 LOAD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 with st.spinner("Loading\u2026"):
-    df_upd  = load_tab("Updates")
-    df_news = load_tab("News")
+    df_upd  = filter_relevant(load_tab("Updates"))
+    df_news = filter_relevant(load_tab("News"))
     df_comp = load_tab("Competitors")
     df_arc  = load_tab("Archive")
-    df_chg  = load_tab("Changes")   # \u2190 new: document change alerts
+    df_chg  = load_tab("Changes")
 
 _seen_chg = st.session_state.get("seen_changes", set())
 _unseen   = len(df_chg) - len([u for u in _seen_chg if any(str(r.get("URL",""))==u or str(r.get("Title",""))==u for _,r in df_chg.iterrows())]) if not df_chg.empty else 0
