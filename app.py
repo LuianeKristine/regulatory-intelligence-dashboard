@@ -372,16 +372,18 @@ def render_card(row, key, show_save=True, show_change_badge=False):
     # Raw excerpt block (shown only if present)
     raw_block = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
 
-    st.markdown(f"""
-    <div class="card {card_class}">
-      <div class="card-hdr">
-        <div class="card-ttl">{ttl}</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">{date_display}</div>
-      </div>
-      <div class="card-sum">{summary or "No summary available."}</div>
-      {raw_block}
-      <div class="card-tags">{tags}{pdf_badge}{chg_badge}</div>
-    </div>""", unsafe_allow_html=True)
+    _card_html = (
+        '<div class="card ' + card_class + '">'
+        '<div class="card-hdr">'
+        '<div class="card-ttl">' + ttl + '</div>'
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">' + date_display + '</div>'
+        '</div>'
+        '<div class="card-sum">' + (summary or "No summary available.") + '</div>'
+        + raw_block +
+        '<div class="card-tags">' + tags + pdf_badge + chg_badge + '</div>'
+        '</div>'
+    )
+    st.markdown(_card_html, unsafe_allow_html=True)
 
     if impl or actions:
         with st.expander("Analysis"):
@@ -485,15 +487,24 @@ with tab_home:
     high_parts = []
     for df_ in [df_upd, df_news]:
         if not df_.empty and "Priority" in df_.columns:
-            high_parts.append(df_[df_["Priority"].fillna("").str.strip().str.lower()=="high"])
+            mask = df_["Priority"].fillna("").str.strip().str.lower() == "high"
+            # Exclude ICH guidelines from High Priority home column — they are informational
+            if "Source" in df_.columns:
+                mask = mask & (df_["Source"].fillna("").str.upper() != "ICH")
+            high_parts.append(df_[mask])
     df_high = pd.concat(high_parts) if high_parts else pd.DataFrame()
+
+    # Remove from df_upd items already shown in high priority (avoid duplicates in Regulatory Updates col)
+    df_upd_home = df_upd.copy()
+    if not df_high.empty and "Title" in df_high.columns and "Title" in df_upd_home.columns:
+        df_upd_home = df_upd_home[~df_upd_home["Title"].isin(df_high["Title"])]
 
     # Changes alert in home
     if not df_chg.empty:
         st.markdown(f'<div class="chg-banner">\u26a0\ufe0f <strong>{len(df_chg)} document(s) were updated</strong> since last scan \u2014 check the Changes tab for details.</div>', unsafe_allow_html=True)
 
     high_html  = col_html(df_high)
-    upd_html   = col_html(df_upd)
+    upd_html   = col_html(df_upd_home)
     news_html  = col_html(df_news)
     hgrid_html = (
         '<div class="hgrid">'
