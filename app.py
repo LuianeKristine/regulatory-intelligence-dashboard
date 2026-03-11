@@ -231,6 +231,11 @@ def clean(text, max_len=400):
     t = re.sub(r'\s+', ' ', t).strip()
     return (t[:max_len] + "\u2026") if len(t) > max_len else t
 
+def safe_html(text):
+    """Convert non-ASCII chars to HTML entities — prevents UnicodeEncodeError in Python 3.14."""
+    if not text: return ""
+    return str(text).encode('ascii', 'xmlcharrefreplace').decode('ascii')
+
 # ── RELEVANCE FILTER ──────────────────────────────────────────────────────────
 IRRELEVANT_RE = re.compile(
     r"search[- ]for\b|/search\?|search_api|views_fulltext|items_per_page|"
@@ -337,19 +342,19 @@ def sort_df(df):
     return df
 
 def render_card(row, key, show_save=True, show_change_badge=False):
-    title    = clean(row.get("Title",   ""), 200) or "Untitled"
+    title    = safe_html(clean(row.get("Title",   ""), 200) or "Untitled")
     url      = str(row.get("URL", "")).strip()
     pdf_url  = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
-    summary  = clean(row.get("AI Summary", row.get("Summary", "")), 400)
-    raw_exc  = clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300)
+    summary  = safe_html(clean(row.get("AI Summary", row.get("Summary", "")), 400))
+    raw_exc  = safe_html(clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300))
     pri      = str(row.get("Priority", "")).strip()
-    pub      = clean(row.get("Published Date", row.get("Date", "")), 16)
-    last_mod = clean(row.get("Last Modified", ""), 16)
-    src      = clean(row.get("Source", ""), 60)
-    ta       = clean(row.get("Therapeutic Area", ""), 60)
-    impl     = clean(row.get("Implications", ""), 600)
-    actions  = clean(row.get("Action Items",  ""), 600)
-    chg_date = clean(row.get("Change Detected", row.get("Change Detected Date", "")), 16)
+    pub      = safe_html(clean(row.get("Published Date", row.get("Date", "")), 16))
+    last_mod = safe_html(clean(row.get("Last Modified", ""), 16))
+    src      = safe_html(clean(row.get("Source", ""), 60))
+    ta       = safe_html(clean(row.get("Therapeutic Area", ""), 60))
+    impl     = safe_html(clean(row.get("Implications", ""), 600))
+    actions  = safe_html(clean(row.get("Action Items",  ""), 600))
+    chg_date = safe_html(clean(row.get("Change Detected", row.get("Change Detected Date", "")), 16))
 
     # Date display: published + last modified
     if last_mod and last_mod != pub:
@@ -363,7 +368,7 @@ def render_card(row, key, show_save=True, show_change_badge=False):
     tags = build_tags(row)
 
     # PDF link badge
-    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">\ud83d\udcc4 PDF</a>' if pdf_url else ""
+    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
 
     # Change badge
     chg_badge = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
@@ -472,7 +477,7 @@ with tab_home:
         if ta  and ta  not in ("-",):             tags += f' <span class="tag tag-gold">{ta}</span>'
         if ha  and ha  not in ("-",) and ha!=src: tags += f' <span class="tag">{ha}</span>'
         if src and src not in ("-",):             tags += f' <span class="tag">{src}</span>'
-        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">\ud83d\udcc4 PDF</a>' if pdf_url else ""
+        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
         return f"""<div class="hcard hcard-{pc}">
   <div class="hcard-ttl">{ttl}</div>
   <div class="hcard-sum">{summary}</div>
@@ -732,13 +737,13 @@ with tab_fav:
             tags    = pbadge(pri)
             if ta  and ta  not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             if src and src not in ("-",): tags += f' <span class="tag">{src}</span>'
-            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">\ud83d\udcc4 PDF</a>' if pdf_url else ""
+            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
             st.markdown(f"""<div class="card card-{pc}">
   <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{pub or "\u2014"}</span></div>
   <div class="card-sum">{summary or "No summary."}</div>
   <div class="card-tags">{tags}{pdf_badge}</div>
 </div>""", unsafe_allow_html=True)
-            if st.button("\ud83d\uddd1 Remove", key=f"del{i}"):
+            if st.button("Remove", key=f"del{i}"):
                 st.session_state["removed_favs"].add(title)
                 st.session_state["saved_favs"].discard(title)
                 st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
@@ -758,7 +763,7 @@ with tab_fav:
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_arc_t:
     st.markdown('<div class="sec-hdr">Archive</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="arc-note">\ud83d\udce6 {len(df_arc) if not df_arc.empty else 0} items \u00b7 historical regulatory documents and archived news</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="arc-note">&#x1F4E6; {len(df_arc) if not df_arc.empty else 0} items \u00b7 historical regulatory documents and archived news</div>', unsafe_allow_html=True)
     if df_arc.empty:
         st.markdown('<div class="empty">Archive is empty.</div>', unsafe_allow_html=True)
     else:
