@@ -1,4 +1,4 @@
-import streamlit as st
+mport streamlit as st
 import pandas as pd
 import re
 from datetime import datetime, date, timezone, timedelta
@@ -8,7 +8,7 @@ import threading
 
 st.set_page_config(
     page_title="Regulatory Intelligence Platform",
-    page_icon="\u2695\ufe0f",
+    page_icon="⚕️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -183,11 +183,11 @@ div[data-testid="collapsedControl"] { display:none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# \u2500\u2500 CONSTANTS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── CONSTANTS ─────────────────────────────────────────────────────────────────
 SHEET_NAME = "Raw Intelligence"
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-# \u2500\u2500 DATA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── DATA ──────────────────────────────────────────────────────────────────────
 @st.cache_resource(ttl=300)
 def get_client():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
@@ -198,22 +198,33 @@ def load_tab(tab_name):
     try:
         gc = get_client()
         ws = gc.open(SHEET_NAME).worksheet(tab_name)
-        raw = ws.get_all_values()
-        if not raw:
-            return pd.DataFrame()
-        headers = raw[0]
-        seen_h = {}
-        clean_h = []
-        for h in headers:
-            h = str(h).strip() or "col"
-            if h in seen_h:
-                seen_h[h] += 1
-                clean_h.append(f"{h}_{seen_h[h]}")
-            else:
-                seen_h[h] = 0
-                clean_h.append(h)
-        rows = raw[1:]
-        df = pd.DataFrame(rows, columns=clean_h) if rows else pd.DataFrame(columns=clean_h)
+        try:
+            # Tenta primeiro com expected_headers=[] para tolerar headers vazios/duplicados
+            data = ws.get_all_records(expected_headers=[])
+            df = pd.DataFrame(data) if data else pd.DataFrame()
+        except Exception:
+            # Fallback: lê valores brutos e monta DataFrame manualmente,
+            # eliminando colunas com header vazio ou duplicado
+            rows = ws.get_all_values()
+            if not rows:
+                return pd.DataFrame()
+            raw_headers = rows[0]
+            seen = {}
+            clean_headers = []
+            for idx, h in enumerate(raw_headers):
+                h = str(h).strip()
+                if h == "":
+                    clean_headers.append(f"__empty_{idx}")
+                elif h in seen:
+                    seen[h] += 1
+                    clean_headers.append(f"{h}_{seen[h]}")
+                else:
+                    seen[h] = 0
+                    clean_headers.append(h)
+            df = pd.DataFrame(rows[1:], columns=clean_headers)
+            # Remove colunas que eram vazias no header original
+            df = df.loc[:, ~df.columns.str.startswith("__empty_")]
+
         if tab_name == "Favorites" and not df.empty and "Deleted" in df.columns:
             df = df[df["Deleted"].fillna("") != "deleted"]
         return df
@@ -221,64 +232,15 @@ def load_tab(tab_name):
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
 
-# \u2500\u2500 HELPERS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 def clean(text, max_len=400):
     t = str(text or "")
     t = re.sub(r'<[^>]+>', ' ', t)
     t = re.sub(r'!\[.*?\]\(.*?\)', '', t)
-    t = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', t)
+    t = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', t)
     t = re.sub(r'[#*_`>~]+', '', t)
     t = re.sub(r'\s+', ' ', t).strip()
-    return (t[:max_len] + "\u2026") if len(t) > max_len else t
-
-def safe_html(text):
-    """Convert non-ASCII chars to HTML entities — prevents UnicodeEncodeError in Python 3.14."""
-    if not text: return ""
-    return str(text).encode('ascii', 'xmlcharrefreplace').decode('ascii')
-
-# ── RELEVANCE FILTER ──────────────────────────────────────────────────────────
-IRRELEVANT_RE = re.compile(
-    r"search[- ]for\b|/search\?|search_api|views_fulltext|items_per_page|"
-    r"\bsearch\s+results\b|search\s+fda\b|"
-    r"drug[- ]trials?[- ]snapshot|trials?\s+snapshot|"
-    r"meeting[- ]minute|meeting\s+highlight|committee[- ]roster|staff[- ]list|"
-    r"\bagenda\b|advisory\s+committee\s+meeting|"
-    r"data[- ]file|glossar|\bfaq\b|frequently[- ]asked|"
-    r"\bcontact\b|\babout[- ]us\b|how[- ]to[- ]submit|subscribe|newsletter|"
-    r"\bsitemap\b|\bprivacy\b|\bdisclaimer\b",
-    re.IGNORECASE
-)
-
-RELEVANT_RE = re.compile(
-    r"approv|authoris|authoriz|new\s+drug|new\s+treatment|new\s+therapy|indication|"
-    r"label\s+change|label\s+update|prescribing|safety\s+alert|recall|withdrawn|"
-    r"EPAR|NDA|BLA|sNDA|sBLA|guideline|guidance|"
-    r"cell\s+therapy|gene\s+therapy|CAR-T|CRISPR|AAV|ATMP|"
-    r"oncol|cancer|tumor|lymphoma|leukemia|autoimmune|rheumatoid|lupus|sclerosis|"
-    r"rare\s+disease|orphan|biologic|biosimilar|immunotherapy",
-    re.IGNORECASE
-)
-
-def is_relevant(row):
-    title = str(row.get("Title","")).strip()
-    url   = str(row.get("URL","")).strip()
-    src   = str(row.get("Source","")).strip().upper()
-    if len(title) < 5:              return False
-    if IRRELEVANT_RE.search(title): return False
-    if IRRELEVANT_RE.search(url):   return False
-    # For ICH and EMA EPARs: always relevant (curated list)
-    if src in ("ICH", "EMA"):       return True
-    # For FDA and News: must match relevant terms
-    if not RELEVANT_RE.search(title + " " + str(row.get("AI Summary",""))):
-        return False
-    return True
-
-def filter_relevant(df):
-    if df is None or df.empty: return df
-    df = df[df.apply(is_relevant, axis=1)]
-    if "Title" in df.columns:
-        df = df.drop_duplicates(subset=["Title"], keep="first")
-    return df
+    return (t[:max_len] + "…") if len(t) > max_len else t
 
 def pclass(p):
     p = str(p).strip().lower()
@@ -303,18 +265,16 @@ def build_tags(row):
     return out
 
 def filter_df(df, search="", ha_f=None, ta_f=None, pri_f=None):
-    if df is None or df.empty: return df
+    if df.empty: return df
     if search:
         q = search.lower()
         df = df[df.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
     if ha_f:
         col = "Health Authority" if "Health Authority" in df.columns else "Source"
         if col in df.columns:
-            pat = "|".join(re.escape(h) for h in ha_f)
-            df = df[df[col].fillna("").str.contains(pat, case=False)]
+            df = df[df[col].fillna("").str.contains("|".join(ha_f), case=False)]
     if ta_f and "Therapeutic Area" in df.columns:
-        pat = "|".join(re.escape(t) for t in ta_f)
-        df = df[df["Therapeutic Area"].fillna("").str.contains(pat, case=False)]
+        df = df[df["Therapeutic Area"].fillna("").str.contains("|".join(ta_f), case=False)]
     if pri_f and "Priority" in df.columns:
         df = df[df["Priority"].fillna("").str.lower().isin([p.lower() for p in pri_f])]
     return df
@@ -342,53 +302,39 @@ def sort_df(df):
     return df
 
 def render_card(row, key, show_save=True, show_change_badge=False):
-    title    = safe_html(clean(row.get("Title",   ""), 200) or "Untitled")
+    title    = clean(row.get("Title",   ""), 200) or "Untitled"
     url      = str(row.get("URL", "")).strip()
     pdf_url  = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
-    summary  = safe_html(clean(row.get("AI Summary", row.get("Summary", "")), 400))
-    raw_exc  = safe_html(clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300))
+    summary  = clean(row.get("AI Summary", row.get("Summary", "")), 400)
+    raw_exc  = clean(row.get("Raw Text Excerpt", row.get("raw_excerpt", "")), 300)
     pri      = str(row.get("Priority", "")).strip()
-    pub      = safe_html(clean(row.get("Published Date", row.get("Date", "")), 16))
-    last_mod = safe_html(clean(row.get("Last Modified", ""), 16))
-    src      = safe_html(clean(row.get("Source", ""), 60))
-    ta       = safe_html(clean(row.get("Therapeutic Area", ""), 60))
-    impl     = safe_html(clean(row.get("Implications", ""), 600))
-    actions  = safe_html(clean(row.get("Action Items",  ""), 600))
-    chg_date = safe_html(clean(row.get("Change Detected", row.get("Change Detected Date", "")), 16))
-
-    # Date display: published + last modified
-    if last_mod and last_mod != pub:
-        date_display = f'<span class="card-dt">Published: {pub or "—"}</span><span class="card-dt" style="margin-left:10px;color:var(--chg);">Updated: {last_mod}</span>'
-    else:
-        date_display = f'<span class="card-dt">{pub or "—"}</span>'
+    pub      = clean(row.get("Published Date", row.get("Date", "")), 16)
+    src      = clean(row.get("Source", ""), 60)
+    ta       = clean(row.get("Therapeutic Area", ""), 60)
+    impl     = clean(row.get("Implications", ""), 600)
+    actions  = clean(row.get("Action Items",  ""), 600)
+    chg_date = clean(row.get("Change Detected Date", ""), 16)
 
     pc   = pclass(pri)
     card_class = "card-changed" if show_change_badge else f"card-{pc}"
     ttl  = f'<a href="{url}" target="_blank">{title}</a>' if url else title
     tags = build_tags(row)
 
-    # PDF link badge
-    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
-
-    # Change badge
+    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
     chg_badge = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
                 f' <span class="badge-chg">UPDATED</span>' if show_change_badge else "")
-
-    # Raw excerpt block (shown only if present)
     raw_block = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
 
-    _card_html = (
-        '<div class="card ' + card_class + '">'
-        '<div class="card-hdr">'
-        '<div class="card-ttl">' + ttl + '</div>'
-        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;flex-shrink:0;">' + date_display + '</div>'
-        '</div>'
-        '<div class="card-sum">' + (summary or "No summary available.") + '</div>'
-        + raw_block +
-        '<div class="card-tags">' + tags + pdf_badge + chg_badge + '</div>'
-        '</div>'
-    )
-    st.markdown(_card_html, unsafe_allow_html=True)
+    st.markdown(f"""
+    <div class="card {card_class}">
+      <div class="card-hdr">
+        <div class="card-ttl">{ttl}</div>
+        <span class="card-dt">{pub or "—"}</span>
+      </div>
+      <div class="card-sum">{summary or "No summary available."}</div>
+      {raw_block}
+      <div class="card-tags">{tags}{pdf_badge}{chg_badge}</div>
+    </div>""", unsafe_allow_html=True)
 
     if impl or actions:
         with st.expander("Analysis"):
@@ -397,7 +343,7 @@ def render_card(row, key, show_save=True, show_change_badge=False):
 
     if show_save:
         already = title in st.session_state.get("saved_favs", set())
-        if st.button("\u2b50 Saved" if already else "\u2606 Save", key=f"sav_{key}", disabled=already):
+        if st.button("⭐ Saved" if already else "☆ Save", key=f"sav_{key}", disabled=already):
             st.session_state.setdefault("saved_favs",   set()).add(title)
             st.session_state.setdefault("pending_favs", []).append({
                 "Title": title, "URL": url, "PDF URL": pdf_url, "Source": src,
@@ -418,48 +364,44 @@ def render_card(row, key, show_save=True, show_change_badge=False):
                 SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
             st.rerun()
 
-# \u2500\u2500 SIDEBAR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""<div style="padding:2px 0 18px;border-bottom:1px solid #eee;margin-bottom:14px;">
       <div style="font-size:1rem;font-weight:700;letter-spacing:-.02em;font-family:'Inter',sans-serif;">RI</div>
       <div style="font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:.1em;margin-top:2px;font-family:'Inter',sans-serif;">Regulatory Intelligence</div>
     </div>""", unsafe_allow_html=True)
-    search_q = st.text_input("", placeholder="Filter\u2026", label_visibility="collapsed")
+    search_q = st.text_input("", placeholder="Filter…", label_visibility="collapsed")
     sel_pri  = st.multiselect("Priority",         ["High","Medium","Low"])
     sel_ha   = st.multiselect("Health Authority", ["FDA","EMA","ICH"])
     sel_ta   = st.multiselect("Therapeutic Area", ["Oncology","Gene Therapy","Cell Therapy","Rare Disease","Autoimmune"])
-    if st.button("\u21ba  Refresh", use_container_width=True):
+    if st.button("↺  Refresh", use_container_width=True):
         st.cache_data.clear(); st.rerun()
     _t = datetime.now(timezone(timedelta(hours=-3))).strftime("%H:%M")
     st.markdown(f'<div style="font-size:10px;color:#bbb;text-align:center;margin-top:8px;font-family:JetBrains Mono,monospace;">updated {_t}</div>', unsafe_allow_html=True)
 
-# \u2500\u2500 HEADER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown(f"""<div class="topbar">
   <div class="topbar-title">Regulatory Intelligence Platform</div>
   <div class="topbar-meta"><span class="live"></span>{date.today().strftime("%a, %b %d %Y")}</div>
 </div>""", unsafe_allow_html=True)
 
-# \u2500\u2500 LOAD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
-with st.spinner("Loading\u2026"):
-    df_upd  = filter_relevant(load_tab("Updates"))
-    df_news = filter_relevant(load_tab("News"))
+# ── LOAD ──────────────────────────────────────────────────────────────────────
+with st.spinner("Loading…"):
+    df_upd  = load_tab("Updates")
+    df_news = load_tab("News")
     df_comp = load_tab("Competitors")
     df_arc  = load_tab("Archive")
     df_chg  = load_tab("Changes")
 
-_seen_chg = st.session_state.get("seen_changes", set())
-_unseen   = len(df_chg) - len([u for u in _seen_chg if any(str(r.get("URL",""))==u or str(r.get("Title",""))==u for _,r in df_chg.iterrows())]) if not df_chg.empty else 0
-_chg_label = f"⚡ Changes ({_unseen})" if _unseen > 0 else "⚡ Changes"
-
 tab_home, tab_fda, tab_ema, tab_ich, tab_nws, tab_cmp, tab_chg_t, tab_srch, tab_arc_t, tab_fav = st.tabs([
     "🏠 Home", "🇺🇸 FDA", "🇪🇺 EMA", "📋 ICH", "📰 News", "Competitors",
-    _chg_label,
+    f"⚡ Changes{f' ({len(df_chg)})' if not df_chg.empty else ''}",
     "🔍 Search", "Archive", "⭐ Favorites"
 ])
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # HOME
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_home:
     def hcard(row):
         title   = clean(row.get("Title", ""), 150) or "Untitled"
@@ -477,7 +419,7 @@ with tab_home:
         if ta  and ta  not in ("-",):             tags += f' <span class="tag tag-gold">{ta}</span>'
         if ha  and ha  not in ("-",) and ha!=src: tags += f' <span class="tag">{ha}</span>'
         if src and src not in ("-",):             tags += f' <span class="tag">{src}</span>'
-        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
+        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
         return f"""<div class="hcard hcard-{pc}">
   <div class="hcard-ttl">{ttl}</div>
   <div class="hcard-sum">{summary}</div>
@@ -492,24 +434,14 @@ with tab_home:
     high_parts = []
     for df_ in [df_upd, df_news]:
         if not df_.empty and "Priority" in df_.columns:
-            mask = df_["Priority"].fillna("").str.strip().str.lower() == "high"
-            # Exclude ICH guidelines from High Priority home column — they are informational
-            if "Source" in df_.columns:
-                mask = mask & (df_["Source"].fillna("").str.upper() != "ICH")
-            high_parts.append(df_[mask])
+            high_parts.append(df_[df_["Priority"].fillna("").str.strip().str.lower()=="high"])
     df_high = pd.concat(high_parts) if high_parts else pd.DataFrame()
 
-    # Remove from df_upd items already shown in high priority (avoid duplicates in Regulatory Updates col)
-    df_upd_home = df_upd.copy()
-    if not df_high.empty and "Title" in df_high.columns and "Title" in df_upd_home.columns:
-        df_upd_home = df_upd_home[~df_upd_home["Title"].isin(df_high["Title"])]
-
-    # Changes alert in home
     if not df_chg.empty:
-        st.markdown(f'<div class="chg-banner">\u26a0\ufe0f <strong>{len(df_chg)} document(s) were updated</strong> since last scan \u2014 check the Changes tab for details.</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="chg-banner">⚠️ <strong>{len(df_chg)} document(s) were updated</strong> since last scan — check the Changes tab for details.</div>', unsafe_allow_html=True)
 
     high_html  = col_html(df_high)
-    upd_html   = col_html(df_upd_home)
+    upd_html   = col_html(df_upd)
     news_html  = col_html(df_news)
     hgrid_html = (
         '<div class="hgrid">'
@@ -523,9 +455,9 @@ with tab_home:
     )
     st.markdown(hgrid_html, unsafe_allow_html=True)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # REGULATORY
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_fda:
     st.markdown('<div class="sec-hdr">🇺🇸 FDA Documents</div>', unsafe_allow_html=True)
     if not df_upd.empty:
@@ -577,9 +509,9 @@ with tab_ich:
         for i, (_, row) in enumerate(df_f.iterrows()):
             render_card(row, key=f"ich{i}")
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # NEWS
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_nws:
     st.markdown('<div class="sec-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
     df_f = sort_df(filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri))
@@ -590,16 +522,16 @@ with tab_nws:
     elif group and "Source" in df_f.columns:
         for src in df_f["Source"].unique():
             sdf = df_f[df_f["Source"]==src]
-            with st.expander(f"{src} \u2014 {len(sdf)} items"):
+            with st.expander(f"{src} — {len(sdf)} items"):
                 for i, (_, row) in enumerate(sdf.iterrows()):
                     render_card(row, key=f"nsrc{hash(src)}{i}", show_save=True)
     else:
         for i, (_, row) in enumerate(df_f.iterrows()):
             render_card(row, key=f"nws{i}")
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # COMPETITORS
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_cmp:
     st.markdown('<div class="sec-hdr">Competitive Intelligence</div>', unsafe_allow_html=True)
     df_f = df_comp.copy()
@@ -625,32 +557,24 @@ with tab_cmp:
             if cat:     tags += f' <span class="tag">{cat}</span>'
             if src:     tags += f' <span class="tag">{src}</span>'
             st.markdown(f"""<div class="card card-na">
-  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{dt or "\u2014"}</span></div>
+  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{dt or "—"}</span></div>
   <div class="card-sum">{summary or "No summary."}</div>
   <div class="card-tags">{tags}</div>
 </div>""", unsafe_allow_html=True)
             if notes:
                 with st.expander("Details"): st.write(notes)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-# CHANGES \u2014 document update alerts
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
+# CHANGES
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_chg_t:
-    # Mark all current changes as seen when tab is opened
-    if not df_chg.empty:
-        seen = st.session_state.get("seen_changes", set())
-        for _, row in df_chg.iterrows():
-            seen.add(str(row.get("URL", row.get("Title", ""))))
-        st.session_state["seen_changes"] = seen
-
-    st.markdown('<div class="sec-hdr">\u26a0\ufe0f Document Changes</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sec-count" style="margin-bottom:14px;">Documents that were updated after initial publication \u2014 labels, guidelines, approvals revised.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-hdr">⚠️ Document Changes</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-count" style="margin-bottom:14px;">Documents that were updated after initial publication — labels, guidelines, approvals revised.</div>', unsafe_allow_html=True)
 
     if df_chg.empty:
         st.markdown('<div class="empty">No document changes detected yet.<br><span style="font-size:11px;">Changes appear here when the scanner finds updated content in a previously tracked document.</span></div>', unsafe_allow_html=True)
     else:
-        # Filter controls
-        chg_search = st.text_input("", placeholder="Filter changes\u2026", key="chg_search", label_visibility="collapsed")
+        chg_search = st.text_input("", placeholder="Filter changes…", key="chg_search", label_visibility="collapsed")
         df_cf = df_chg.copy()
         if chg_search:
             q = chg_search.lower()
@@ -660,7 +584,6 @@ with tab_chg_t:
             if col in df_cf.columns:
                 df_cf = df_cf[df_cf[col].fillna("").str.contains("|".join(sel_ha), case=False)]
 
-        # Sort by change date, newest first
         if "Change Detected Date" in df_cf.columns:
             df_cf["_chg_sort"] = pd.to_datetime(df_cf["Change Detected Date"].fillna(""), errors="coerce")
             df_cf = df_cf.sort_values("_chg_sort", ascending=False).drop(columns=["_chg_sort"])
@@ -670,12 +593,12 @@ with tab_chg_t:
         for i, (_, row) in enumerate(df_cf.iterrows()):
             render_card(row, key=f"chg{i}", show_save=True, show_change_badge=True)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # SEARCH
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_srch:
     st.markdown('<div class="sec-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
-    q = st.text_input("", placeholder="Search across all data\u2026", key="srch_input", label_visibility="collapsed")
+    q = st.text_input("", placeholder="Search across all data…", key="srch_input", label_visibility="collapsed")
     if q:
         r_u = filter_df(df_upd,  q)
         r_n = filter_df(df_news, q)
@@ -701,11 +624,11 @@ with tab_srch:
     else:
         st.markdown('<div style="color:#bbb;text-align:center;padding:40px;font-size:12.5px;">Type to search all intelligence.</div>', unsafe_allow_html=True)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # FAVORITES
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_fav:
-    st.markdown('<div class="sec-hdr">\u2b50 Favorites</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-hdr">⭐ Favorites</div>', unsafe_allow_html=True)
     st.session_state.setdefault("removed_favs", set())
     st.session_state.setdefault("saved_favs",   set())
     st.session_state.setdefault("pending_favs", [])
@@ -720,7 +643,7 @@ with tab_fav:
             df_fav = pd.concat([df_fav, pd.DataFrame(new)], ignore_index=True) if not df_fav.empty else pd.DataFrame(new)
 
     if df_fav.empty:
-        st.markdown('<div class="empty">No favorites yet. Click \u2606 Save on any item.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="empty">No favorites yet. Click ☆ Save on any item.</div>', unsafe_allow_html=True)
     else:
         st.markdown(f'<div class="sec-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for i, (_, row) in enumerate(df_fav.iloc[::-1].iterrows()):
@@ -737,13 +660,13 @@ with tab_fav:
             tags    = pbadge(pri)
             if ta  and ta  not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             if src and src not in ("-",): tags += f' <span class="tag">{src}</span>'
-            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
+            pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">📄 PDF</a>' if pdf_url else ""
             st.markdown(f"""<div class="card card-{pc}">
-  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{pub or "\u2014"}</span></div>
+  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{pub or "—"}</span></div>
   <div class="card-sum">{summary or "No summary."}</div>
   <div class="card-tags">{tags}{pdf_badge}</div>
 </div>""", unsafe_allow_html=True)
-            if st.button("Remove", key=f"del{i}"):
+            if st.button("🗑 Remove", key=f"del{i}"):
                 st.session_state["removed_favs"].add(title)
                 st.session_state["saved_favs"].discard(title)
                 st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
@@ -758,16 +681,16 @@ with tab_fav:
                 threading.Thread(target=_del, args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
                 st.rerun()
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # ARCHIVE
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_arc_t:
     st.markdown('<div class="sec-hdr">Archive</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="arc-note">&#x1F4E6; {len(df_arc) if not df_arc.empty else 0} items \u00b7 historical regulatory documents and archived news</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="arc-note">📦 {len(df_arc) if not df_arc.empty else 0} items · older than 7 days</div>', unsafe_allow_html=True)
     if df_arc.empty:
         st.markdown('<div class="empty">Archive is empty.</div>', unsafe_allow_html=True)
     else:
-        aq = st.text_input("", placeholder="Search archive\u2026", key="arc_q", label_visibility="collapsed")
+        aq = st.text_input("", placeholder="Search archive…", key="arc_q", label_visibility="collapsed")
         df_af = filter_df(df_arc, aq)
         st.markdown(f'<div class="sec-count">{len(df_af)} items</div>', unsafe_allow_html=True)
         for i, (_, row) in enumerate(df_af.iterrows()):
