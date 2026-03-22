@@ -296,10 +296,6 @@ def pclass(p):
     return p if p in ("high","medium","low") else "na"
 
 def pbadge(p):
-    pc = pclass(p)
-    if pc == "high":   return '<span class="badge-high">HIGH</span>'
-    if pc == "medium": return '<span class="badge-med">MED</span>'
-    if pc == "low":    return '<span class="badge-low">LOW</span>'
     return ""
 
 def build_tags(row):
@@ -458,9 +454,9 @@ with st.spinner("Loading\u2026"):
     df_appr  = load_tab("Drug Approvals")
     df_adcom = load_tab("Advisory Committees")
 
-tab_home, tab_fda, tab_appr, tab_adcom, tab_nws, tab_srch, tab_arc_t, tab_fav = st.tabs([
+tab_home, tab_fda, tab_appr, tab_adcom, tab_srch, tab_arc_t, tab_fav = st.tabs([
     "🏠 Home", "🇺🇸 FDA", "💊 Drug Approvals", "🏛️ Advisory Committees",
-    "📰 News", "🔍 Search", "Archive", "⭐ Favorites"
+    "🔍 Search", "Archive", "⭐ Favorites"
 ])
 
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -471,15 +467,25 @@ with tab_home:
 # REGULATORY
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_fda:
-    st.markdown('<div class="sec-hdr">🇺🇸 FDA Documents</div>', unsafe_allow_html=True)
-    if not df_upd.empty:
-        if "Health Authority" in df_upd.columns:
-            fda_df = df_upd[df_upd["Health Authority"].fillna("").str.upper().str.contains("FDA")]
+    st.markdown('<div class="sec-hdr">🇺🇸 FDA Updates & News</div>', unsafe_allow_html=True)
+    # Load FDA docs without relevance filter
+    df_upd_raw = load_tab("Updates")
+    if not df_upd_raw.empty:
+        if "Health Authority" in df_upd_raw.columns:
+            fda_df = df_upd_raw[df_upd_raw["Health Authority"].fillna("").str.upper().str.contains("FDA")]
         else:
-            fda_df = df_upd[df_upd["Source"].fillna("").str.upper().str.contains("FDA")]
+            fda_df = df_upd_raw[df_upd_raw["Source"].fillna("").str.upper().str.contains("FDA")]
     else:
         fda_df = pd.DataFrame()
-    df_f = sort_df(filter_df(fda_df, search_q, None, sel_ta, sel_pri))
+    # Also include FDA news only
+    df_news_raw = load_tab("News")
+    if not df_news_raw.empty:
+        src_col = "Health Authority" if "Health Authority" in df_news_raw.columns else "Source"
+        fda_news = df_news_raw[df_news_raw[src_col].fillna("").str.upper().str.contains("FDA")]
+    else:
+        fda_news = pd.DataFrame()
+    fda_combined = pd.concat([fda_df, fda_news], ignore_index=True) if not fda_news.empty else fda_df
+    df_f = sort_df(filter_df(fda_combined, search_q, None, sel_ta, sel_pri))
     st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
         st.markdown('<div class="empty">No FDA documents yet.</div>', unsafe_allow_html=True)
@@ -603,22 +609,6 @@ with tab_adcom:
   <div class="card-tags">{tags}</div>
 </div>""", unsafe_allow_html=True)
 
-with tab_nws:
-    st.markdown('<div class="sec-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
-    df_f = sort_df(filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri))
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    group = st.toggle("Group by source", value=False)
-    if df_f.empty:
-        st.markdown('<div class="empty">No items match your filters.</div>', unsafe_allow_html=True)
-    elif group and "Source" in df_f.columns:
-        for src in df_f["Source"].unique():
-            sdf = df_f[df_f["Source"]==src]
-            with st.expander(f"{src} \u2014 {len(sdf)} items"):
-                for i, (_, row) in enumerate(sdf.iterrows()):
-                    render_card(row, key=f"nsrc{hash(src)}{i}", show_save=True)
-    else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            render_card(row, key=f"nws{i}")
 
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 # COMPETITORS
