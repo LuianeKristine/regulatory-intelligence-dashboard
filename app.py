@@ -460,14 +460,9 @@ with st.spinner("Loading\u2026"):
     df_appr  = load_tab("Drug Approvals")
     df_adcom = load_tab("Advisory Committees")
 
-_seen_chg = st.session_state.get("seen_changes", set())
-_unseen   = len(df_chg) - len([u for u in _seen_chg if any(str(r.get("URL",""))==u or str(r.get("Title",""))==u for _,r in df_chg.iterrows())]) if not df_chg.empty else 0
-_chg_label = f"⚡ Changes ({_unseen})" if _unseen > 0 else "⚡ Changes"
-
-tab_home, tab_fda, tab_appr, tab_adcom, tab_ema, tab_ich, tab_nws, tab_cmp, tab_chg_t, tab_srch, tab_arc_t, tab_fav = st.tabs([
+tab_home, tab_fda, tab_appr, tab_adcom, tab_ema, tab_ich, tab_nws, tab_cmp, tab_srch, tab_arc_t, tab_fav = st.tabs([
     "🏠 Home", "🇺🇸 FDA", "💊 Drug Approvals", "🏛️ Advisory Committees",
     "🇪🇺 EMA", "📋 ICH", "📰 News", "Competitors",
-    _chg_label,
     "🔍 Search", "Archive", "⭐ Favorites"
 ])
 
@@ -522,10 +517,6 @@ with tab_home:
     df_upd_home = df_upd.copy()
     if not df_high.empty and "Title" in df_high.columns and "Title" in df_upd_home.columns:
         df_upd_home = df_upd_home[~df_upd_home["Title"].isin(df_high["Title"])]
-
-    # Changes alert in home
-    if not df_chg.empty:
-        st.markdown(f'<div class="chg-banner">\u26a0\ufe0f <strong>{len(df_chg)} document(s) were updated</strong> since last scan \u2014 check the Changes tab for details.</div>', unsafe_allow_html=True)
 
     high_html  = col_html(df_high, cap=8)
     upd_html   = col_html(df_upd_home, cap=10)
@@ -765,45 +756,6 @@ with tab_cmp:
             if notes:
                 with st.expander("Details"): st.write(notes)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-# CHANGES \u2014 document update alerts
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-with tab_chg_t:
-    # Mark all current changes as seen when tab is opened
-    if not df_chg.empty:
-        seen = st.session_state.get("seen_changes", set())
-        for _, row in df_chg.iterrows():
-            seen.add(str(row.get("URL", row.get("Title", ""))))
-        st.session_state["seen_changes"] = seen
-
-    st.markdown('<div class="sec-hdr">\u26a0\ufe0f Document Changes</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sec-count" style="margin-bottom:14px;">Documents that were updated after initial publication \u2014 labels, guidelines, approvals revised.</div>', unsafe_allow_html=True)
-
-    if df_chg.empty:
-        st.markdown('<div class="empty">No document changes detected yet.<br><span style="font-size:11px;">Changes appear here when the scanner finds updated content in a previously tracked document.</span></div>', unsafe_allow_html=True)
-    else:
-        # Filter controls
-        chg_search = st.text_input("", placeholder="Filter changes\u2026", key="chg_search", label_visibility="collapsed")
-        df_cf = df_chg.copy()
-        if chg_search:
-            q = chg_search.lower()
-            df_cf = df_cf[df_cf.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
-        if sel_ha:
-            col = "Health Authority" if "Health Authority" in df_cf.columns else "Source"
-            if col in df_cf.columns:
-                df_cf = df_cf[df_cf[col].fillna("").str.contains("|".join(sel_ha), case=False)]
-
-        # Sort by change date, newest first
-        if "Change Detected Date" in df_cf.columns:
-            df_cf["_chg_sort"] = pd.to_datetime(df_cf["Change Detected Date"].fillna(""), errors="coerce")
-            df_cf = df_cf.sort_values("_chg_sort", ascending=False).drop(columns=["_chg_sort"])
-
-        st.markdown(f'<div class="sec-count">{len(df_cf)} change(s)</div>', unsafe_allow_html=True)
-
-        for i, (_, row) in enumerate(df_cf.iterrows()):
-            render_card(row, key=f"chg{i}", show_save=True, show_change_badge=True)
-
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 # SEARCH
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_srch:
@@ -813,8 +765,7 @@ with tab_srch:
         r_u = filter_df(df_upd,  q)
         r_n = filter_df(df_news, q)
         r_c = filter_df(df_comp, q)
-        r_ch = filter_df(df_chg, q)
-        total = len(r_u) + len(r_n) + len(r_c) + len(r_ch)
+        total = len(r_u) + len(r_n) + len(r_c)
         st.markdown(f'<div class="sec-count">{total} results for <strong>{q}</strong></div>', unsafe_allow_html=True)
         lbl = lambda t: f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin:18px 0 8px;">{t}</div>'
         if not r_u.empty:
@@ -823,9 +774,6 @@ with tab_srch:
         if not r_n.empty:
             st.markdown(lbl("News"), unsafe_allow_html=True)
             for i,(_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
-        if not r_ch.empty:
-            st.markdown(lbl("Changes"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_ch.iterrows()): render_card(row, f"srch{i}", show_change_badge=True)
         if not r_c.empty:
             st.markdown(lbl("Competitors"), unsafe_allow_html=True)
             for i,(_, row) in enumerate(r_c.iterrows()): render_card(row, f"src{i}", show_save=False)
