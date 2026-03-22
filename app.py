@@ -467,55 +467,7 @@ tab_home, tab_fda, tab_appr, tab_adcom, tab_nws, tab_srch, tab_arc_t, tab_fav = 
 # HOME
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_home:
-    def hcard(row):
-        title   = clean(row.get("Title", ""), 150) or "Untitled"
-        url     = str(row.get("URL", "")).strip()
-        pdf_url = str(row.get("PDF URL", row.get("pdf_url", ""))).strip()
-        summary = clean(row.get("AI Summary", row.get("Summary", "")), 150)
-        pri     = str(row.get("Priority", "")).strip()
-        pub     = clean(row.get("Published Date", row.get("Date", "")), 16)
-        ta      = clean(row.get("Therapeutic Area", ""), 60)
-        ha      = clean(row.get("Health Authority", row.get("Source", "")), 60)
-        src     = clean(row.get("Source", ""), 60)
-        pc      = pclass(pri)
-        ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-        tags = pbadge(pri)
-        if ta  and ta  not in ("-",):             tags += f' <span class="tag tag-gold">{ta}</span>'
-        if ha  and ha  not in ("-",) and ha!=src: tags += f' <span class="tag">{ha}</span>'
-        if src and src not in ("-",):             tags += f' <span class="tag">{src}</span>'
-        pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
-        return f"""<div class="hcard hcard-{pc}">
-  <div class="hcard-ttl">{ttl}</div>
-  <div class="hcard-sum">{summary}</div>
-  <div class="hcard-foot"><span class="hcard-dt">{pub}</span>{tags}{pdf_badge}</div>
-</div>"""
-
-    def col_html(df_, cap=None):
-        if df_ is None or df_.empty:
-            return '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
-        df_ = sort_df(df_)
-        if "Title" in df_.columns:
-            df_ = df_[df_["Title"].fillna("").str.strip().str.len() > 3]
-        if cap:
-            df_ = df_.head(cap)
-        return "".join(hcard(r) for _, r in df_.iterrows())
-
-    upd_html   = col_html(df_upd, cap=10)
-    news_html  = col_html(df_news, cap=10)
-    appr_html  = col_html(df_appr.rename(columns={"Drug Name": "Title", "Approval URL": "URL", "Approval Letter URL": "PDF URL", "Approval Date": "Published Date"}), cap=8) if not df_appr.empty else '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
-    hgrid_html = (
-        '<div class="hgrid">'
-        '<div class="hcol"><div class="hcol-hdr">Drug Approvals</div>'
-        '<div class="hcol-scroll">' + appr_html + '</div></div>'
-        '<div class="hcol"><div class="hcol-hdr">Regulatory Updates</div>'
-        '<div class="hcol-scroll">' + upd_html + '</div></div>'
-        '<div class="hcol"><div class="hcol-hdr">Latest News</div>'
-        '<div class="hcol-scroll">' + news_html + '</div></div>'
-        '</div>'
-    )
-    st.markdown(hgrid_html, unsafe_allow_html=True)
-
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+    st.markdown('<div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px;">Select a tab to explore regulatory intelligence.</div>', unsafe_allow_html=True)
 # REGULATORY
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_fda:
@@ -553,7 +505,8 @@ with tab_appr:
         for i, (_, row) in enumerate(df_af.iterrows()):
             drug       = clean(row.get("Drug Name",           ""), 200) or "Unnamed Drug"
             appr_url   = str(row.get("Approval URL",          "")).strip()
-            letter_url = str(row.get("Approval Letter URL",   "")).strip()
+            letter_url  = str(row.get("Approval Letter URL",  "")).strip()
+            clinical_url = str(row.get("Clinical Review URL", "")).strip()
             appr_date  = clean(row.get("Approval Date",       ""), 16)
             last_doc   = clean(row.get("Last Document Update",""), 16)
             summary    = clean(row.get("AI Summary",          ""), 500)
@@ -567,7 +520,8 @@ with tab_appr:
             tags      = pbadge(pri)
             if ta and ta not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             tags += ' <span class="tag">FDA</span>'
-            letter_badge = f' <a href="{letter_url}" target="_blank" class="card-pdf">📄 Approval Letter</a>' if letter_url else ""
+            letter_badge   = f' <a href="{letter_url}" target="_blank" class="card-pdf">📄 Approval Letter</a>' if letter_url else ""
+            clinical_badge = f' <a href="{clinical_url}" target="_blank" class="card-pdf">🔬 Clinical Review</a>' if clinical_url else ""
 
             # Date line: approval date + last doc update
             date_line = ""
@@ -580,7 +534,7 @@ with tab_appr:
     <span class="card-dt" style="font-size:10px;color:var(--text-3);">{date_line}</span>
   </div>
   <div class="card-sum">{summary or "No summary available."}</div>
-  <div class="card-tags">{tags}{letter_badge}</div>
+  <div class="card-tags">{tags}{letter_badge}{clinical_badge}</div>
 </div>""", unsafe_allow_html=True)
 
             if clinical or reg_impact:
