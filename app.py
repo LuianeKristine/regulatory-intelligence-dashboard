@@ -454,16 +454,13 @@ st.markdown(f"""<div class="topbar">
 with st.spinner("Loading\u2026"):
     df_upd   = filter_relevant(load_tab("Updates"))
     df_news  = filter_relevant(load_tab("News"))
-    df_comp  = load_tab("Competitors")
     df_arc   = load_tab("Archive")
-    df_chg   = load_tab("Changes")
     df_appr  = load_tab("Drug Approvals")
     df_adcom = load_tab("Advisory Committees")
 
-tab_home, tab_fda, tab_appr, tab_adcom, tab_ema, tab_ich, tab_nws, tab_cmp, tab_srch, tab_arc_t, tab_fav = st.tabs([
+tab_home, tab_fda, tab_appr, tab_adcom, tab_nws, tab_srch, tab_arc_t, tab_fav = st.tabs([
     "🏠 Home", "🇺🇸 FDA", "💊 Drug Approvals", "🏛️ Advisory Committees",
-    "🇪🇺 EMA", "📋 ICH", "📰 News", "Competitors",
-    "🔍 Search", "Archive", "⭐ Favorites"
+    "📰 News", "🔍 Search", "Archive", "⭐ Favorites"
 ])
 
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
@@ -503,28 +500,13 @@ with tab_home:
             df_ = df_.head(cap)
         return "".join(hcard(r) for _, r in df_.iterrows())
 
-    high_parts = []
-    for df_ in [df_upd, df_news]:
-        if not df_.empty and "Priority" in df_.columns:
-            mask = df_["Priority"].fillna("").str.strip().str.lower() == "high"
-            # Exclude ICH guidelines from High Priority home column — they are informational
-            if "Source" in df_.columns:
-                mask = mask & (df_["Source"].fillna("").str.upper() != "ICH")
-            high_parts.append(df_[mask])
-    df_high = pd.concat(high_parts) if high_parts else pd.DataFrame()
-
-    # Remove from df_upd items already shown in high priority (avoid duplicates in Regulatory Updates col)
-    df_upd_home = df_upd.copy()
-    if not df_high.empty and "Title" in df_high.columns and "Title" in df_upd_home.columns:
-        df_upd_home = df_upd_home[~df_upd_home["Title"].isin(df_high["Title"])]
-
-    high_html  = col_html(df_high, cap=8)
-    upd_html   = col_html(df_upd_home, cap=10)
+    upd_html   = col_html(df_upd, cap=10)
     news_html  = col_html(df_news, cap=10)
+    appr_html  = col_html(df_appr.rename(columns={"Drug Name": "Title", "Approval URL": "URL", "Approval Letter URL": "PDF URL", "Approval Date": "Published Date"}), cap=8) if not df_appr.empty else '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
     hgrid_html = (
         '<div class="hgrid">'
-        '<div class="hcol"><div class="hcol-hdr">High Priority</div>'
-        '<div class="hcol-scroll">' + high_html + '</div></div>'
+        '<div class="hcol"><div class="hcol-hdr">Drug Approvals</div>'
+        '<div class="hcol-scroll">' + appr_html + '</div></div>'
         '<div class="hcol"><div class="hcol-hdr">Regulatory Updates</div>'
         '<div class="hcol-scroll">' + upd_html + '</div></div>'
         '<div class="hcol"><div class="hcol-hdr">Latest News</div>'
@@ -667,43 +649,6 @@ with tab_adcom:
   <div class="card-tags">{tags}</div>
 </div>""", unsafe_allow_html=True)
 
-with tab_ema:
-    st.markdown('<div class="sec-hdr">🇪🇺 EMA Documents</div>', unsafe_allow_html=True)
-    if not df_upd.empty:
-        if "Health Authority" in df_upd.columns:
-            ema_df = df_upd[df_upd["Health Authority"].fillna("").str.upper().str.contains("EMA")]
-        else:
-            ema_df = df_upd[df_upd["Source"].fillna("").str.upper().str.contains("EMA")]
-    else:
-        ema_df = pd.DataFrame()
-    df_f = sort_df(filter_df(ema_df, search_q, None, sel_ta, sel_pri))
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    if df_f.empty:
-        st.markdown('<div class="empty">No EMA documents yet.</div>', unsafe_allow_html=True)
-    else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            render_card(row, key=f"ema{i}")
-
-with tab_ich:
-    st.markdown('<div class="sec-hdr">📋 ICH Guidelines</div>', unsafe_allow_html=True)
-    if not df_upd.empty:
-        if "Health Authority" in df_upd.columns:
-            ich_df = df_upd[df_upd["Health Authority"].fillna("").str.upper().str.contains("ICH")]
-        else:
-            ich_df = df_upd[df_upd["Source"].fillna("").str.upper().str.contains("ICH")]
-    else:
-        ich_df = pd.DataFrame()
-    df_f = sort_df(filter_df(ich_df, search_q, None, sel_ta, sel_pri))
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    if df_f.empty:
-        st.markdown('<div class="empty">No ICH guidelines yet.</div>', unsafe_allow_html=True)
-    else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            render_card(row, key=f"ich{i}")
-
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-# NEWS
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_nws:
     st.markdown('<div class="sec-hdr">Industry News & Publications</div>', unsafe_allow_html=True)
     df_f = sort_df(filter_df(df_news, search_q, sel_ha, sel_ta, sel_pri))
@@ -724,48 +669,13 @@ with tab_nws:
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 # COMPETITORS
 # \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-with tab_cmp:
-    st.markdown('<div class="sec-hdr">Competitive Intelligence</div>', unsafe_allow_html=True)
-    df_f = df_comp.copy()
-    if search_q and not df_f.empty:
-        q = search_q.lower()
-        df_f = df_f[df_f.apply(lambda r: q in " ".join(r.astype(str).values).lower(), axis=1)]
-    st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
-    if df_f.empty:
-        st.markdown('<div class="empty">No competitor intelligence available.</div>', unsafe_allow_html=True)
-    else:
-        for i, (_, row) in enumerate(df_f.iterrows()):
-            title   = clean(row.get("Title",    ""), 200) or "Untitled"
-            url     = str(row.get("URL",        "")).strip()
-            summary = clean(row.get("Summary",  ""), 400)
-            company = clean(row.get("Company",  ""), 60)
-            cat     = clean(row.get("Category", ""), 60)
-            src     = clean(row.get("Source",   ""), 60)
-            dt      = clean(row.get("Date", row.get("Run Date", "")), 16)
-            notes   = clean(row.get("Notes",    ""), 600)
-            ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-            tags    = ""
-            if company: tags += f'<span class="tag tag-gold">{company}</span>'
-            if cat:     tags += f' <span class="tag">{cat}</span>'
-            if src:     tags += f' <span class="tag">{src}</span>'
-            st.markdown(f"""<div class="card card-na">
-  <div class="card-hdr"><div class="card-ttl">{ttl}</div><span class="card-dt">{dt or "\u2014"}</span></div>
-  <div class="card-sum">{summary or "No summary."}</div>
-  <div class="card-tags">{tags}</div>
-</div>""", unsafe_allow_html=True)
-            if notes:
-                with st.expander("Details"): st.write(notes)
-
-# SEARCH
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
 with tab_srch:
     st.markdown('<div class="sec-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
     q = st.text_input("", placeholder="Search across all data\u2026", key="srch_input", label_visibility="collapsed")
     if q:
         r_u = filter_df(df_upd,  q)
         r_n = filter_df(df_news, q)
-        r_c = filter_df(df_comp, q)
-        total = len(r_u) + len(r_n) + len(r_c)
+        total = len(r_u) + len(r_n)
         st.markdown(f'<div class="sec-count">{total} results for <strong>{q}</strong></div>', unsafe_allow_html=True)
         lbl = lambda t: f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin:18px 0 8px;">{t}</div>'
         if not r_u.empty:
@@ -774,9 +684,6 @@ with tab_srch:
         if not r_n.empty:
             st.markdown(lbl("News"), unsafe_allow_html=True)
             for i,(_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
-        if not r_c.empty:
-            st.markdown(lbl("Competitors"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_c.iterrows()): render_card(row, f"src{i}", show_save=False)
         if total == 0:
             st.markdown('<div class="empty">No results found.</div>', unsafe_allow_html=True)
     else:
