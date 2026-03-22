@@ -8,7 +8,7 @@ import threading
 
 st.set_page_config(
     page_title="Regulatory Intelligence Platform",
-    page_icon="\u2695\ufe0f",
+    page_icon="⚕️",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -183,11 +183,11 @@ div[data-testid="collapsedControl"] { display:none !important; }
 </style>
 """, unsafe_allow_html=True)
 
-# \u2500\u2500 CONSTANTS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── CONSTANTS ─────────────────────────────────────────────────────────────────
 SHEET_NAME = "Raw Intelligence"
 SCOPES = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
 
-# \u2500\u2500 DATA \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── DATA ──────────────────────────────────────────────────────────────────────
 @st.cache_resource(ttl=300)
 def get_client():
     creds = Credentials.from_service_account_info(st.secrets["gcp_service_account"], scopes=SCOPES)
@@ -221,7 +221,7 @@ def load_tab(tab_name):
         st.error(f"Could not load '{tab_name}': {e}")
         return pd.DataFrame()
 
-# \u2500\u2500 HELPERS \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── HELPERS ───────────────────────────────────────────────────────────────────
 def clean(text, max_len=400):
     t = str(text or "")
     t = re.sub(r'<[^>]+>', ' ', t)
@@ -232,7 +232,6 @@ def clean(text, max_len=400):
     return (t[:max_len] + "\u2026") if len(t) > max_len else t
 
 def safe_html(text):
-    """Convert non-ASCII chars to HTML entities — prevents UnicodeEncodeError in Python 3.14."""
     if not text: return ""
     return str(text).encode('ascii', 'xmlcharrefreplace').decode('ascii')
 
@@ -259,29 +258,25 @@ RELEVANT_RE = re.compile(
 )
 
 def is_relevant(row):
-    title  = str(row.get("Title","")).strip()
-    url    = str(row.get("URL","")).strip()
-    src    = str(row.get("Source","")).strip().upper()
-    dtype  = str(row.get("Doc Type","")).strip()
+    title = str(row.get("Title","")).strip()
+    url   = str(row.get("URL","")).strip()
+    src   = str(row.get("Source","")).strip().upper()
+    dtype = str(row.get("Doc Type","")).strip()
 
     if len(title) < 5:              return False
     if IRRELEVANT_RE.search(title): return False
     if IRRELEVANT_RE.search(url):   return False
-
-    # ICH and EMA: always relevant (curated list)
     if src in ("ICH", "EMA"):       return True
 
-    # FDA Drug Approvals and press: always relevant
-    if src == "FDA" and dtype.lower() in ("drug approval", "press announcement",
-        "otp event/meeting", "otp learn", "oce publication"): return True
+    # FDA docs — always relevant for these types
+    if src == "FDA" and dtype.lower() in (
+        "drug approval", "press announcement", "otp event/meeting",
+        "otp learn", "oce publication", "news", "guidance document"
+    ): return True
 
-    # Everything else: must match relevant terms in title or summary
     summary = str(row.get("AI Summary", ""))
     if RELEVANT_RE.search(title + " " + summary): return True
-
-    # If no summary yet (just added), let it through
     if not summary.strip(): return True
-
     return False
 
 def filter_relevant(df):
@@ -363,28 +358,21 @@ def render_card(row, key, show_save=True, show_change_badge=False):
     actions  = safe_html(clean(row.get("Action Items",  ""), 600))
     chg_date = safe_html(clean(row.get("Change Detected", row.get("Change Detected Date", "")), 16))
 
-    # Date display: published + last modified
     if last_mod and last_mod != pub:
-        date_display = f'<span class="card-dt">Published: {pub or "—"}</span><span class="card-dt" style="margin-left:10px;color:var(--chg);">Updated: {last_mod}</span>'
+        date_display = f'<span class="card-dt">Published: {pub or "\u2014"}</span><span class="card-dt" style="margin-left:10px;color:var(--chg);">Updated: {last_mod}</span>'
     else:
-        date_display = f'<span class="card-dt">{pub or "—"}</span>'
+        date_display = f'<span class="card-dt">{pub or "\u2014"}</span>'
 
-    pc   = pclass(pri)
+    pc         = pclass(pri)
     card_class = "card-changed" if show_change_badge else f"card-{pc}"
-    ttl  = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-    tags = build_tags(row)
+    ttl        = f'<a href="{url}" target="_blank">{title}</a>' if url else title
+    tags       = build_tags(row)
+    pdf_badge  = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
+    chg_badge  = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
+                 f' <span class="badge-chg">UPDATED</span>' if show_change_badge else "")
+    raw_block  = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
 
-    # PDF link badge
-    pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
-
-    # Change badge
-    chg_badge = f' <span class="badge-chg">UPDATED {chg_date}</span>' if show_change_badge and chg_date else (
-                f' <span class="badge-chg">UPDATED</span>' if show_change_badge else "")
-
-    # Raw excerpt block (shown only if present)
-    raw_block = f'<div class="card-raw">"{raw_exc}"</div>' if raw_exc else ""
-
-    _card_html = (
+    st.markdown(
         '<div class="card ' + card_class + '">'
         '<div class="card-hdr">'
         '<div class="card-ttl">' + ttl + '</div>'
@@ -393,9 +381,9 @@ def render_card(row, key, show_save=True, show_change_badge=False):
         '<div class="card-sum">' + (summary or "No summary available.") + '</div>'
         + raw_block +
         '<div class="card-tags">' + tags + pdf_badge + chg_badge + '</div>'
-        '</div>'
+        '</div>',
+        unsafe_allow_html=True
     )
-    st.markdown(_card_html, unsafe_allow_html=True)
 
     if impl or actions:
         with st.expander("Analysis"):
@@ -425,7 +413,7 @@ def render_card(row, key, show_save=True, show_change_badge=False):
                 SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
             st.rerun()
 
-# \u2500\u2500 SIDEBAR \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── SIDEBAR ───────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("""<div style="padding:2px 0 18px;border-bottom:1px solid #eee;margin-bottom:14px;">
       <div style="font-size:1rem;font-weight:700;letter-spacing:-.02em;font-family:'Inter',sans-serif;">RI</div>
@@ -440,13 +428,13 @@ with st.sidebar:
     _t = datetime.now(timezone(timedelta(hours=-3))).strftime("%H:%M")
     st.markdown(f'<div style="font-size:10px;color:#bbb;text-align:center;margin-top:8px;font-family:JetBrains Mono,monospace;">updated {_t}</div>', unsafe_allow_html=True)
 
-# \u2500\u2500 HEADER \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── HEADER ────────────────────────────────────────────────────────────────────
 st.markdown(f"""<div class="topbar">
   <div class="topbar-title">Regulatory Intelligence Platform</div>
   <div class="topbar-meta"><span class="live"></span>{date.today().strftime("%a, %b %d %Y")}</div>
 </div>""", unsafe_allow_html=True)
 
-# \u2500\u2500 LOAD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+# ── LOAD ──────────────────────────────────────────────────────────────────────
 with st.spinner("Loading\u2026"):
     df_upd   = load_tab("Updates")
     df_news  = load_tab("News")
@@ -455,37 +443,32 @@ with st.spinner("Loading\u2026"):
     df_adcom = load_tab("Advisory Committees")
 
 tab_home, tab_fda, tab_appr, tab_adcom, tab_srch, tab_arc_t, tab_fav = st.tabs([
-    "🏠 Home", "🇺🇸 FDA", "💊 Drug Approvals", "🏛️ Advisory Committees",
-    "🔍 Search", "Archive", "⭐ Favorites"
+    "\U0001f3e0 Home", "\U0001f1fa\U0001f1f8 FDA", "\U0001f48a Drug Approvals", "\U0001f3db\ufe0f Advisory Committees",
+    "\U0001f50d Search", "Archive", "\u2b50 Favorites"
 ])
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # HOME
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_home:
     st.markdown('<div style="padding:40px;text-align:center;color:var(--text-3);font-size:13px;">Select a tab to explore regulatory intelligence.</div>', unsafe_allow_html=True)
-# REGULATORY
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+
+# ══════════════════════════════════════════════════════════════════════════════
+# US FDA
+# ★ FIX: news FDA já estão na aba Updates (Colab v3 salva com Health Authority=FDA)
+#        Removida busca na aba News por FDA — Source lá é sempre o nome do feed
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_fda:
-    st.markdown('<div class="sec-hdr">🇺🇸 FDA Updates & News</div>', unsafe_allow_html=True)
-    # Load FDA docs without relevance filter
-    df_upd_raw = load_tab("Updates")
-    if not df_upd_raw.empty:
-        if "Health Authority" in df_upd_raw.columns:
-            fda_df = df_upd_raw[df_upd_raw["Health Authority"].fillna("").str.upper().str.contains("FDA")]
+    st.markdown('<div class="sec-hdr">\U0001f1fa\U0001f1f8 FDA Updates & News</div>', unsafe_allow_html=True)
+    if not df_upd.empty:
+        if "Health Authority" in df_upd.columns:
+            fda_df = df_upd[df_upd["Health Authority"].fillna("").str.upper().str.contains("FDA")]
         else:
-            fda_df = df_upd_raw[df_upd_raw["Source"].fillna("").str.upper().str.contains("FDA")]
+            fda_df = df_upd[df_upd["Source"].fillna("").str.upper().str.contains("FDA")]
     else:
         fda_df = pd.DataFrame()
-    # Also include FDA news only
-    df_news_raw = load_tab("News")
-    if not df_news_raw.empty:
-        src_col = "Health Authority" if "Health Authority" in df_news_raw.columns else "Source"
-        fda_news = df_news_raw[df_news_raw[src_col].fillna("").str.upper().str.contains("FDA")]
-    else:
-        fda_news = pd.DataFrame()
-    fda_combined = pd.concat([fda_df, fda_news], ignore_index=True) if not fda_news.empty else fda_df
-    df_f = sort_df(filter_df(fda_combined, search_q, None, sel_ta, sel_pri))
+
+    df_f = sort_df(filter_df(fda_df, search_q, None, sel_ta, sel_pri))
     st.markdown(f'<div class="sec-count">{len(df_f)} items</div>', unsafe_allow_html=True)
     if df_f.empty:
         st.markdown('<div class="empty">No FDA documents yet.</div>', unsafe_allow_html=True)
@@ -497,7 +480,7 @@ with tab_fda:
 # DRUG APPROVALS
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_appr:
-    st.markdown('<div class="sec-hdr">💊 Cell & Gene Therapy — Drug Approvals</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-hdr">\U0001f48a Cell & Gene Therapy \u2014 Drug Approvals</div>', unsafe_allow_html=True)
     if df_appr.empty:
         st.markdown('<div class="empty">No drug approvals yet. Run the FDA Extended Scanner to populate.</div>', unsafe_allow_html=True)
     else:
@@ -509,30 +492,29 @@ with tab_appr:
             df_af = df_af[df_af["Therapeutic Area"].fillna("").str.contains("|".join(sel_ta), case=False)]
         st.markdown(f'<div class="sec-count">{len(df_af)} approvals</div>', unsafe_allow_html=True)
         for i, (_, row) in enumerate(df_af.iterrows()):
-            drug       = clean(row.get("Drug Name",           ""), 200) or "Unnamed Drug"
-            appr_url   = str(row.get("Approval URL",          "")).strip()
-            letter_url  = str(row.get("Approval Letter URL",  "")).strip()
-            clinical_url = str(row.get("Clinical Review URL", "")).strip()
-            appr_date  = clean(row.get("Approval Date",       ""), 16)
-            last_doc   = clean(row.get("Last Document Update",""), 16)
-            summary    = clean(row.get("AI Summary",          ""), 500)
-            clinical   = clean(row.get("Clinical Data Summary",""), 600)
-            reg_impact = clean(row.get("Regulatory Impact",   ""), 600)
-            pri        = str(row.get("Priority", "High")).strip()
-            ta         = clean(row.get("Therapeutic Area",    ""), 60)
-            pc         = pclass(pri)
+            drug         = clean(row.get("Drug Name",            ""), 200) or "Unnamed Drug"
+            appr_url     = str(row.get("Approval URL",           "")).strip()
+            letter_url   = str(row.get("Approval Letter URL",    "")).strip()
+            clinical_url = str(row.get("Clinical Review URL",    "")).strip()
+            appr_date    = clean(row.get("Approval Date",        ""), 16)
+            last_doc     = clean(row.get("Last Document Update", ""), 16)
+            summary      = clean(row.get("AI Summary",           ""), 500)
+            clinical     = clean(row.get("Clinical Data Summary",""), 600)
+            reg_impact   = clean(row.get("Regulatory Impact",    ""), 600)
+            pri          = str(row.get("Priority", "High")).strip()
+            ta           = clean(row.get("Therapeutic Area",     ""), 60)
+            pc           = pclass(pri)
 
-            ttl       = f'<a href="{appr_url}" target="_blank">{drug}</a>' if appr_url else drug
-            tags      = pbadge(pri)
+            ttl            = f'<a href="{appr_url}" target="_blank">{drug}</a>' if appr_url else drug
+            tags           = pbadge(pri)
             if ta and ta not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
-            tags += ' <span class="tag">FDA</span>'
-            letter_badge   = f' <a href="{letter_url}" target="_blank" class="card-pdf">📄 Approval Letter</a>' if letter_url else ""
-            clinical_badge = f' <a href="{clinical_url}" target="_blank" class="card-pdf">🔬 Clinical Review</a>' if clinical_url else ""
+            tags          += ' <span class="tag">FDA</span>'
+            letter_badge   = f' <a href="{letter_url}" target="_blank" class="card-pdf">\U0001f4c4 Approval Letter</a>' if letter_url else ""
+            clinical_badge = f' <a href="{clinical_url}" target="_blank" class="card-pdf">\U0001f52c Clinical Review</a>' if clinical_url else ""
 
-            # Date line: approval date + last doc update
             date_line = ""
             if appr_date: date_line += f"Approved: <strong>{appr_date}</strong>"
-            if last_doc:  date_line += f"&nbsp;&nbsp;·&nbsp;&nbsp;Last doc: <strong>{last_doc}</strong>"
+            if last_doc:  date_line += f"&nbsp;&nbsp;\u00b7&nbsp;&nbsp;Last doc: <strong>{last_doc}</strong>"
 
             st.markdown(f"""<div class="card card-{pc}">
   <div class="card-hdr">
@@ -552,7 +534,7 @@ with tab_appr:
 # ADVISORY COMMITTEES
 # ══════════════════════════════════════════════════════════════════════════════
 with tab_adcom:
-    st.markdown('<div class="sec-hdr">🏛️ Advisory Committee Meetings</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sec-hdr">\U0001f3db\ufe0f Advisory Committee Meetings</div>', unsafe_allow_html=True)
     if df_adcom.empty:
         st.markdown('<div class="empty">No advisory committee meetings yet. Run the FDA Extended Scanner to populate.</div>', unsafe_allow_html=True)
     else:
@@ -563,7 +545,6 @@ with tab_adcom:
         if sel_ta and "Therapeutic Area" in df_ac.columns:
             df_ac = df_ac[df_ac["Therapeutic Area"].fillna("").str.contains("|".join(sel_ta), case=False)]
 
-        # Sort by meeting date desc
         if "Meeting Date" in df_ac.columns:
             df_ac["_dsort"] = pd.to_datetime(df_ac["Meeting Date"].fillna(""), errors="coerce")
             df_ac = df_ac.sort_values("_dsort", ascending=False).drop(columns=["_dsort"])
@@ -571,15 +552,15 @@ with tab_adcom:
         st.markdown(f'<div class="sec-count">{len(df_ac)} meetings</div>', unsafe_allow_html=True)
 
         for i, (_, row) in enumerate(df_ac.iterrows()):
-            committee  = clean(row.get("Committee",          ""), 100)
-            title      = clean(row.get("Meeting Title",      ""), 200) or committee or "Advisory Committee Meeting"
-            meet_url   = str(row.get("Meeting URL",          "")).strip()
-            meet_date  = clean(row.get("Meeting Date",       ""), 16)
-            docs_avail = clean(row.get("Documents Available",""), 300)
-            last_doc   = clean(row.get("Latest Doc Added",   ""), 16)
-            summary    = clean(row.get("AI Summary",         ""), 500)
+            committee  = clean(row.get("Committee",           ""), 100)
+            title      = clean(row.get("Meeting Title",       ""), 200) or committee or "Advisory Committee Meeting"
+            meet_url   = str(row.get("Meeting URL",           "")).strip()
+            meet_date  = clean(row.get("Meeting Date",        ""), 16)
+            docs_avail = clean(row.get("Documents Available", ""), 300)
+            last_doc   = clean(row.get("Latest Doc Added",    ""), 16)
+            summary    = clean(row.get("AI Summary",          ""), 500)
             pri        = str(row.get("Priority", "High")).strip()
-            ta         = clean(row.get("Therapeutic Area",   ""), 60)
+            ta         = clean(row.get("Therapeutic Area",    ""), 60)
             pc         = pclass(pri)
 
             ttl  = f'<a href="{meet_url}" target="_blank">{title}</a>' if meet_url else title
@@ -587,15 +568,13 @@ with tab_adcom:
             if ta        and ta        not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             if committee and committee not in ("-",): tags += f' <span class="tag">{committee}</span>'
 
-            # Date line
             date_line = ""
             if meet_date: date_line += f"Meeting: <strong>{meet_date}</strong>"
-            if last_doc:  date_line += f"&nbsp;&nbsp;·&nbsp;&nbsp;Latest doc: <strong>{last_doc}</strong>"
+            if last_doc:  date_line += f"&nbsp;&nbsp;\u00b7&nbsp;&nbsp;Latest doc: <strong>{last_doc}</strong>"
 
-            # Documents available as small tags
             docs_html = ""
             if docs_avail and docs_avail not in ("-", "None"):
-                doc_list = [d.strip() for d in docs_avail.split(",") if d.strip()]
+                doc_list  = [d.strip() for d in docs_avail.split(",") if d.strip()]
                 docs_html = " ".join(f'<span class="tag">{d}</span>' for d in doc_list)
                 docs_html = f'<div style="margin:6px 0 4px;display:flex;flex-wrap:wrap;gap:3px;">{docs_html}</div>'
 
@@ -609,33 +588,32 @@ with tab_adcom:
   <div class="card-tags">{tags}</div>
 </div>""", unsafe_allow_html=True)
 
-
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
-# COMPETITORS
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
+# SEARCH
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_srch:
     st.markdown('<div class="sec-hdr">Search All Intelligence</div>', unsafe_allow_html=True)
     q = st.text_input("", placeholder="Search across all data\u2026", key="srch_input", label_visibility="collapsed")
     if q:
-        r_u = filter_df(df_upd,  q)
-        r_n = filter_df(df_news, q)
+        r_u   = filter_df(df_upd,  q)
+        r_n   = filter_df(df_news, q)
         total = len(r_u) + len(r_n)
         st.markdown(f'<div class="sec-count">{total} results for <strong>{q}</strong></div>', unsafe_allow_html=True)
         lbl = lambda t: f'<div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#bbb;margin:18px 0 8px;">{t}</div>'
         if not r_u.empty:
             st.markdown(lbl("Regulatory"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_u.iterrows()): render_card(row, f"sru{i}")
+            for i, (_, row) in enumerate(r_u.iterrows()): render_card(row, f"sru{i}")
         if not r_n.empty:
             st.markdown(lbl("News"), unsafe_allow_html=True)
-            for i,(_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
+            for i, (_, row) in enumerate(r_n.iterrows()): render_card(row, f"srn{i}")
         if total == 0:
             st.markdown('<div class="empty">No results found.</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div style="color:#bbb;text-align:center;padding:40px;font-size:12.5px;">Type to search all intelligence.</div>', unsafe_allow_html=True)
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # FAVORITES
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_fav:
     st.markdown('<div class="sec-hdr">\u2b50 Favorites</div>', unsafe_allow_html=True)
     st.session_state.setdefault("removed_favs", set())
@@ -656,17 +634,17 @@ with tab_fav:
     else:
         st.markdown(f'<div class="sec-count">{len(df_fav)} saved items</div>', unsafe_allow_html=True)
         for i, (_, row) in enumerate(df_fav.iloc[::-1].iterrows()):
-            title   = clean(row.get("Title",   ""), 200) or "Untitled"
-            url     = str(row.get("URL",       "")).strip()
-            pdf_url = str(row.get("PDF URL",   "")).strip()
-            summary = clean(row.get("AI Summary", row.get("Summary", "")), 400)
-            pri     = str(row.get("Priority",  "")).strip()
-            ta      = clean(row.get("Therapeutic Area", ""), 60)
-            pub     = clean(row.get("Published Date", row.get("Saved At", "")), 16)
-            src     = clean(row.get("Source",  ""), 60)
-            pc      = pclass(pri)
-            ttl     = f'<a href="{url}" target="_blank">{title}</a>' if url else title
-            tags    = pbadge(pri)
+            title     = clean(row.get("Title",   ""), 200) or "Untitled"
+            url       = str(row.get("URL",       "")).strip()
+            pdf_url   = str(row.get("PDF URL",   "")).strip()
+            summary   = clean(row.get("AI Summary", row.get("Summary", "")), 400)
+            pri       = str(row.get("Priority",  "")).strip()
+            ta        = clean(row.get("Therapeutic Area", ""), 60)
+            pub       = clean(row.get("Published Date", row.get("Saved At", "")), 16)
+            src       = clean(row.get("Source",  ""), 60)
+            pc        = pclass(pri)
+            ttl       = f'<a href="{url}" target="_blank">{title}</a>' if url else title
+            tags      = pbadge(pri)
             if ta  and ta  not in ("-",): tags += f' <span class="tag tag-gold">{ta}</span>'
             if src and src not in ("-",): tags += f' <span class="tag">{src}</span>'
             pdf_badge = f' <a href="{pdf_url}" target="_blank" class="card-pdf">&#x1F4C4; PDF</a>' if pdf_url else ""
@@ -681,25 +659,25 @@ with tab_fav:
                 st.session_state["pending_favs"] = [p for p in st.session_state["pending_favs"] if p.get("Title") != title]
                 def _del(t, sname, sec):
                     try:
-                        c2 = Credentials.from_service_account_info(sec, scopes=SCOPES)
+                        c2  = Credentials.from_service_account_info(sec, scopes=SCOPES)
                         ws2 = gspread.authorize(c2).open(sname).worksheet("Favorites")
                         rows = ws2.get_all_values()
-                        for rn,r in enumerate(rows[1:],2):
-                            if r and r[0]==t: ws2.delete_rows(rn); break
+                        for rn, r in enumerate(rows[1:], 2):
+                            if r and r[0] == t: ws2.delete_rows(rn); break
                     except Exception: pass
                 threading.Thread(target=_del, args=(title, SHEET_NAME, dict(st.secrets["gcp_service_account"])), daemon=True).start()
                 st.rerun()
 
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 # ARCHIVE
-# \u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550\u2550
+# ══════════════════════════════════════════════════════════════════════════════
 with tab_arc_t:
     st.markdown('<div class="sec-hdr">Archive</div>', unsafe_allow_html=True)
     st.markdown(f'<div class="arc-note">&#x1F4E6; {len(df_arc) if not df_arc.empty else 0} items \u00b7 historical regulatory documents and archived news</div>', unsafe_allow_html=True)
     if df_arc.empty:
         st.markdown('<div class="empty">Archive is empty.</div>', unsafe_allow_html=True)
     else:
-        aq = st.text_input("", placeholder="Search archive\u2026", key="arc_q", label_visibility="collapsed")
+        aq    = st.text_input("", placeholder="Search archive\u2026", key="arc_q", label_visibility="collapsed")
         df_af = filter_df(df_arc, aq)
         st.markdown(f'<div class="sec-count">{len(df_af)} items</div>', unsafe_allow_html=True)
         for i, (_, row) in enumerate(df_af.iterrows()):
