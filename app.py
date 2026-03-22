@@ -498,10 +498,15 @@ with tab_home:
   <div class="hcard-foot"><span class="hcard-dt">{pub}</span>{tags}{pdf_badge}</div>
 </div>"""
 
-    def col_html(df_):
+    def col_html(df_, cap=None):
         if df_ is None or df_.empty:
             return '<div class="empty" style="padding:14px;font-size:11px;">No items.</div>'
-        return "".join(hcard(r) for _, r in sort_df(df_).iterrows())
+        df_ = sort_df(df_)
+        if "Title" in df_.columns:
+            df_ = df_[df_["Title"].fillna("").str.strip().str.len() > 3]
+        if cap:
+            df_ = df_.head(cap)
+        return "".join(hcard(r) for _, r in df_.iterrows())
 
     high_parts = []
     for df_ in [df_upd, df_news]:
@@ -522,9 +527,9 @@ with tab_home:
     if not df_chg.empty:
         st.markdown(f'<div class="chg-banner">\u26a0\ufe0f <strong>{len(df_chg)} document(s) were updated</strong> since last scan \u2014 check the Changes tab for details.</div>', unsafe_allow_html=True)
 
-    high_html  = col_html(df_high)
-    upd_html   = col_html(df_upd_home)
-    news_html  = col_html(df_news)
+    high_html  = col_html(df_high, cap=8)
+    upd_html   = col_html(df_upd_home, cap=10)
+    news_html  = col_html(df_news, cap=10)
     hgrid_html = (
         '<div class="hgrid">'
         '<div class="hcol"><div class="hcol-hdr">High Priority</div>'
