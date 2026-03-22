@@ -448,8 +448,8 @@ st.markdown(f"""<div class="topbar">
 
 # \u2500\u2500 LOAD \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
 with st.spinner("Loading\u2026"):
-    df_upd   = filter_relevant(load_tab("Updates"))
-    df_news  = filter_relevant(load_tab("News"))
+    df_upd   = load_tab("Updates")
+    df_news  = load_tab("News")
     df_arc   = load_tab("Archive")
     df_appr  = load_tab("Drug Approvals")
     df_adcom = load_tab("Advisory Committees")
