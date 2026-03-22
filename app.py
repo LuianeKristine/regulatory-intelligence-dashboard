@@ -242,7 +242,6 @@ IRRELEVANT_RE = re.compile(
     r"\bsearch\s+results\b|search\s+fda\b|"
     r"drug[- ]trials?[- ]snapshot|trials?\s+snapshot|"
     r"meeting[- ]minute|meeting\s+highlight|committee[- ]roster|staff[- ]list|"
-    r"\bagenda\b|advisory\s+committee\s+meeting|"
     r"data[- ]file|glossar|\bfaq\b|frequently[- ]asked|"
     r"\bcontact\b|\babout[- ]us\b|how[- ]to[- ]submit|subscribe|newsletter|"
     r"\bsitemap\b|\bprivacy\b|\bdisclaimer\b",
@@ -272,8 +271,9 @@ def is_relevant(row):
     # ICH and EMA: always relevant (curated list)
     if src in ("ICH", "EMA"):       return True
 
-    # FDA Drug Approvals: always relevant (these are new medicines)
-    if src == "FDA" and "approval" in dtype.lower(): return True
+    # FDA Drug Approvals and press: always relevant
+    if src == "FDA" and dtype.lower() in ("drug approval", "press announcement",
+        "otp event/meeting", "otp learn", "oce publication"): return True
 
     # Everything else: must match relevant terms in title or summary
     summary = str(row.get("AI Summary", ""))
