@@ -1,0 +1,286 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>RegAI Real-Time FDA Dashboard</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Primary navigation">
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">R</div>
+          <div>
+            <strong>RegAI</strong>
+            <span>Regulatory Intelligence</span>
+          </div>
+        </div>
+
+        <nav class="nav-tabs">
+          <button class="nav-tab active" type="button" data-view="overview"><span class="nav-dot"></span>Overview</button>
+          <button class="nav-tab" type="button" data-view="guidances"><span class="nav-dot"></span>FDA Guidances</button>
+          <button class="nav-tab" type="button" data-view="press"><span class="nav-dot"></span>Press Announcements</button>
+          <button class="nav-tab" type="button" data-view="approvals"><span class="nav-dot"></span>Drug Approvals</button>
+          <button class="nav-tab" type="button" data-view="advisory"><span class="nav-dot"></span>Advisory Committees</button>
+          <button class="nav-tab" type="button" data-view="oce"><span class="nav-dot"></span>OCE Publications</button>
+          <button class="nav-tab" type="button" data-view="settings"><span class="nav-dot"></span>Settings</button>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span>Collection status</span>
+          <strong id="sidebarSyncState">Waiting for sync</strong>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="topbar">
+          <div class="page-heading">
+            <p class="eyebrow">FDA source monitoring</p>
+            <h1 id="pageTitle">Overview</h1>
+            <p id="pageSubtitle">Current FDA source status and document change monitoring.</p>
+          </div>
+
+          <div class="topbar-actions">
+            <label class="global-search">
+              <span>Global search</span>
+              <input id="globalSearch" type="search" placeholder="Search documents" />
+            </label>
+            <button id="syncButton" class="primary-button" type="button"><span class="button-dot"></span>Sync</button>
+            <button id="exportReport" class="secondary-button" type="button">Export Report</button>
+            <span id="collectionStatus" class="status-pill">Ready</span>
+          </div>
+        </header>
+
+        <section id="overviewView" class="view-section">
+          <div class="metric-grid" id="kpiGrid" aria-label="Key metrics"></div>
+
+          <div class="overview-grid">
+            <section class="surface-panel panel-large">
+              <div class="panel-heading">
+                <div>
+                  <h2>Recent Activity</h2>
+                  <p id="activityMeta">Latest detected FDA records</p>
+                </div>
+              </div>
+              <div id="recentActivity" class="activity-list"></div>
+            </section>
+
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>High Priority Updates</h2>
+                  <p>Impact classification is prepared for a future release.</p>
+                </div>
+              </div>
+              <div id="priorityUpdates" class="priority-list"></div>
+            </section>
+
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Documents by Source</h2>
+                  <p>Current D1 document distribution.</p>
+                </div>
+              </div>
+              <div id="documentsBySource" class="source-chart"></div>
+            </section>
+
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Activity Trend</h2>
+                  <p>Recent sync signal.</p>
+                </div>
+              </div>
+              <div id="activityTrend" class="trend-card"></div>
+            </section>
+
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Sources Overview</h2>
+                  <p>Enabled and planned FDA feeds.</p>
+                </div>
+              </div>
+              <div id="overviewSources" class="source-readiness"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="documentsView" class="view-section surface-panel hidden">
+          <div class="panel-heading table-heading">
+            <div>
+              <h2 id="tableTitle">Latest FDA Documents</h2>
+              <p id="tableMeta">Loading sources</p>
+            </div>
+            <button id="clearFilters" class="secondary-button" type="button">Clear filters</button>
+          </div>
+
+          <form class="filters" id="filtersForm">
+            <label class="filter-search">
+              <span>Search</span>
+              <input id="searchFilter" type="search" placeholder="Title, topic, center" />
+            </label>
+            <label>
+              <span>Source</span>
+              <select id="sourceFilter">
+                <option value="all">All sources</option>
+                <option value="guidance">Guidances</option>
+                <option value="press">Press</option>
+                <option value="approval">Approvals</option>
+              </select>
+            </label>
+            <label>
+              <span>FDA Center</span>
+              <select id="centerFilter">
+                <option value="">All centers</option>
+                <option value="CDER">CDER</option>
+                <option value="CBER">CBER</option>
+                <option value="OCE">OCE</option>
+              </select>
+            </label>
+            <label>
+              <span>Status</span>
+              <select id="statusFilter">
+                <option value="">Any status</option>
+                <option value="draft">Draft</option>
+                <option value="final">Final</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </label>
+            <label>
+              <span>From</span>
+              <input id="fromFilter" type="date" />
+            </label>
+            <label>
+              <span>To</span>
+              <input id="toFilter" type="date" />
+            </label>
+            <label class="toggle-filter"><input id="newFilter" type="checkbox" /><span>New</span></label>
+            <label class="toggle-filter"><input id="updatedFilter" type="checkbox" /><span>Updated</span></label>
+          </form>
+
+          <div id="tableLoading" class="loading-state hidden"><span></span><span></span><span></span></div>
+          <div id="tableError" class="state-message error hidden"></div>
+          <div id="emptyState" class="state-message hidden"></div>
+
+          <div class="table-wrap" id="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Source</th>
+                  <th>FDA Center</th>
+                  <th>Status</th>
+                  <th><button id="dateSortButton" class="sort-button" type="button">Date <span id="sortIndicator">desc</span></button></th>
+                  <th>Change</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="documentsTable"></tbody>
+            </table>
+          </div>
+
+          <div class="pagination" id="pagination">
+            <button id="prevPage" class="secondary-button" type="button">Previous</button>
+            <span id="pageInfo">Page 1</span>
+            <button id="nextPage" class="secondary-button" type="button">Next</button>
+          </div>
+        </section>
+
+        <section id="detailView" class="view-section detail-page hidden">
+          <button id="backToList" class="secondary-button back-button" type="button">Back</button>
+          <nav id="detailBreadcrumb" class="breadcrumb"></nav>
+          <section class="detail-hero surface-panel">
+            <div>
+              <p id="detailCategory" class="eyebrow">Document</p>
+              <h1 id="detailTitle">Document detail</h1>
+              <p id="detailSubtitle"></p>
+              <div id="detailBadges" class="badge-row"></div>
+            </div>
+            <div id="detailActions" class="detail-actions"></div>
+          </section>
+
+          <section class="detail-summary surface-panel">
+            <div>
+              <h2>Regulatory Summary</h2>
+              <p id="detailSummary">Not identified</p>
+            </div>
+            <span id="detailCollectionStatus" class="status-pill">Needs review</span>
+          </section>
+
+          <section id="detailCards" class="detail-card-grid"></section>
+
+          <section class="surface-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Supporting Documents</h2>
+                <p>Regulatory package discovered from FDA product and document pages.</p>
+              </div>
+            </div>
+            <div id="supportingDocuments" class="supporting-grid"></div>
+          </section>
+
+          <section class="detail-two-column">
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>Version History</h2>
+                  <p>Detected document changes.</p>
+                </div>
+              </div>
+              <div id="detailVersions" class="version-list"></div>
+            </section>
+
+            <section class="surface-panel">
+              <div class="panel-heading">
+                <div>
+                  <h2>AI Analysis</h2>
+                  <p>Coming soon.</p>
+                </div>
+              </div>
+              <div class="ai-soon">
+                Future releases can add summaries, regulatory impact and stakeholder analysis without changing the current data model.
+              </div>
+            </section>
+          </section>
+        </section>
+
+        <section id="placeholderView" class="view-section surface-panel placeholder-panel hidden"></section>
+
+        <section id="settingsView" class="view-section settings-grid hidden">
+          <section class="surface-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>API Connection</h2>
+                <p>Use same origin for Pages and Workers routing, or paste a Worker URL.</p>
+              </div>
+            </div>
+            <div class="settings-row">
+              <label class="api-field wide">
+                <span>Worker API</span>
+                <input id="settingsApiBase" type="url" placeholder="https://your-worker.workers.dev" />
+              </label>
+              <button id="saveSettings" class="primary-button" type="button">Save</button>
+            </div>
+          </section>
+
+          <section class="surface-panel">
+            <div class="panel-heading">
+              <div>
+                <h2>Source Readiness</h2>
+                <p>Enabled sources sync now. Planned sources remain visible for client demos.</p>
+              </div>
+            </div>
+            <div id="sourceReadiness" class="source-readiness"></div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,21 @@
+name = "regai-realtime-worker"
+main = "src/index.ts"
+compatibility_date = "2026-05-30"
+workers_dev = true
+
+[vars]
+CACHE_TTL_SECONDS = "900"
+CORS_ORIGIN = "*"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "regai-db"
+database_id = "00000000-0000-0000-0000-000000000000" # replace with wrangler d1 create output
+
+[[kv_namespaces]]
+binding = "FDA_CACHE"
+id = "00000000000000000000000000000000" # replace with wrangler kv namespace create output
+preview_id = "00000000000000000000000000000000" # replace with preview namespace output
+
+[triggers]
+crons = ["*/30 * * * *"]
